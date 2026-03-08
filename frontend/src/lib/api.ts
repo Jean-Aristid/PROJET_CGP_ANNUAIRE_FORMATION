@@ -2,7 +2,7 @@ export type ApiOptions = {
   login?: string | null;
 } & RequestInit;
 
-const API_BASE = import.meta.env.VITE_API_BASE || "/api";
+const API_BASE = import.meta.env.VITE_API_BASE || "/api/v1";
 
 export const getStoredLogin = () => localStorage.getItem("auth_login");
 export const setStoredLogin = (login: string) => localStorage.setItem("auth_login", login);
