@@ -3,7 +3,8 @@
 ## Stack
 
 - `frontend/` : React (Vite) — UI
-- `backend-nest/` : NestJS + TypeScript + Prisma — API
+- `backend/` : Node.js (Express) — API
+- `backend-nest/` : NestJS + TypeScript + Prisma — API (par défaut en Docker)
 - `script/db/` : scripts SQL Postgres (manuel)
 - `script/db/init/` : scripts SQL Postgres (init automatique)
 
@@ -13,6 +14,7 @@
 - Front : http://localhost:5173
 - Back : http://localhost:3001/api/health
 - Postgres : localhost:5432
+Note : le service `backend` (Express) est en profil `legacy`. Le service `backend-nest` (NestJS) est lancé par défaut.
 
 ### Démarrage
 
@@ -25,7 +27,14 @@ docker compose logs -f backend-nest
 
 ```bash
 docker compose up --build frontend
+docker compose up --build backend
 docker compose up --build db
+```
+
+Pour lancer l'ancien backend (Express) :
+
+```bash
+docker compose --profile legacy up --build backend
 ```
 
 ### Réinitialiser la base (rejouer les scripts `script/db/init/`)
@@ -45,7 +54,17 @@ docker compose up -d --build --force-recreate
 
 ## Sans Docker (local)
 
-### Backend NestJS
+### Backend
+
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+Variables utiles (si Postgres tourne en local) : `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`.
+
+### Backend NestJS (nouveau)
 
 ```bash
 cd backend-nest
@@ -70,7 +89,7 @@ npm install
 npm run dev
 ```
 
-Note : en local, le proxy `/api` utilise `http://localhost:3001` par défaut. En Docker, `VITE_API_TARGET` est injecté vers `http://backend-nest:3001`.
+Note : en local, le proxy `/api` utilise `http://localhost:3001` par défaut. En Docker, `VITE_API_TARGET` est injecté vers `http://backend:3001`.
 
 ## Dépannage Docker (Ubuntu)
 

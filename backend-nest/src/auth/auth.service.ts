@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import type { CurrentUser, CurrentUserAffectation } from '../common/types/current-user';
 
@@ -7,8 +7,7 @@ export class AuthService {
   constructor(private readonly prisma: PrismaService) {}
 
   async buildCurrentUserByLogin(login: string): Promise<CurrentUser | null> {
-    try {
-      const user = await this.prisma.utilisateur.findUnique({
+    const user = await this.prisma.utilisateur.findUnique({
       where: { login },
       include: {
         affectation: {
@@ -35,22 +34,6 @@ export class AuthService {
         this.mapAffectation(affectation),
       ),
     };
-    } catch (err) {
-      const message =
-        err && typeof (err as Error).message === 'string'
-          ? (err as Error).message
-          : 'Service indisponible';
-      if (message.includes('connect') || message.includes('Connection')) {
-        throw new HttpException(
-          { message: 'Base de données indisponible. Vérifiez que le serveur et la base sont démarrés.' },
-          HttpStatus.SERVICE_UNAVAILABLE,
-        );
-      }
-      throw new HttpException(
-        { message: 'Erreur lors de la vérification de l\'utilisateur.' },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
   }
 
   private mapAffectation(affectation: {
