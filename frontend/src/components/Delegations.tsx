@@ -44,9 +44,9 @@ type ApiUser = {
 const rightsOptions = [
   { value: "view", label: "Lecture" },
   { value: "manage_responsables", label: "Gestion responsables" },
-  { value: "assign_role", label: "Affectation roles" },
-  { value: "delegate", label: "Deleguer" },
-  { value: "generate_org", label: "Generer organigramme" },
+  { value: "assign_role", label: "Affectation rôles" },
+  { value: "delegate", label: "Déléguer" },
+  { value: "generate_org", label: "Générer organigramme" },
   { value: "export_data", label: "Export" },
   { value: "import_data", label: "Import" },
   { value: "audit_view", label: "Audit" },
@@ -72,6 +72,7 @@ export function Delegations({
   const [filterActive, setFilterActive] = useState<"all" | "active" | "inactive">("active");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const [newDelegation, setNewDelegation] = useState({
     delegateeId: "",
     scopeEntite: "",
@@ -79,6 +80,11 @@ export function Delegations({
     startDate: todayIso(),
     endDate: "",
   });
+  const canCreate =
+    userRole === "directeur-composante" ||
+    userRole === "directeur-administratif" ||
+    userRole === "directeur-administratif-adjoint";
+  const canExport = userRole === "services-centraux";
 
   const loadData = async () => {
     if (!authLogin) return;
@@ -150,7 +156,7 @@ export function Delegations({
       });
       await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de la creation");
+      setError(err instanceof Error ? err.message : "Erreur lors de la création");
     } finally {
       setLoading(false);
     }
@@ -170,22 +176,58 @@ export function Delegations({
     }
   };
 
+  const handleExport = async () => {
+    if (!authLogin || !canExport) return;
+    setExporting(true);
+    setError(null);
+    try {
+      const data = await apiFetch<{ csv: string }>("/delegations/export", { login: authLogin });
+      const blob = new Blob([data.csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `delegations-${currentYear.year}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur export");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-slate-900 mb-2">Gestion des delegations</h2>
+          <h2 className="text-slate-900 mb-2">Gestion des délégations</h2>
           <p className="text-slate-600">
-            Creer et consulter les delegations de droits - tracabilite complete
+            {canCreate
+              ? "Créer et consulter les délégations de droits (DC, DA, DA adjoint). Services centraux : export CSV."
+              : "Consulter les délégations et exporter en CSV (Services centraux)."}
           </p>
         </div>
-        <button
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
-        >
-          <UserPlus className="w-5 h-5" />
-          Creer une delegation
-        </button>
+        <div className="flex items-center gap-2">
+          {canExport && (
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors disabled:opacity-60"
+            >
+              <Eye className="w-5 h-5" />
+              Export CSV
+            </button>
+          )}
+          {canCreate && (
+            <button
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+            >
+              <UserPlus className="w-5 h-5" />
+              Créer une délégation
+            </button>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -194,21 +236,21 @@ export function Delegations({
         </div>
       )}
 
-      {showCreateForm && (
+      {showCreateForm && canCreate && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <h3 className="text-slate-900 mb-4">Nouvelle delegation</h3>
+          <h3 className="text-slate-900 mb-4">Nouvelle délégation</h3>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Delegataire <span className="text-red-500">*</span>
+                  Délégataire <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={newDelegation.delegateeId}
                   onChange={(e) => setNewDelegation({ ...newDelegation, delegateeId: e.target.value })}
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                 >
-                  <option value="">Selectionner un utilisateur</option>
+                  <option value="">Sélectionner un utilisateur</option>
                   {users
                     .filter((user) => String(user.id_user) !== currentUserId)
                     .map((user) => (
@@ -220,14 +262,14 @@ export function Delegations({
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Perimetre (structure) <span className="text-red-500">*</span>
+                  Périmètre (structure) <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={newDelegation.scopeEntite}
                   onChange={(e) => setNewDelegation({ ...newDelegation, scopeEntite: e.target.value })}
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                 >
-                  <option value="">Selectionner une structure</option>
+                  <option value="">Sélectionner une structure</option>
                   {entites.map((entite) => (
                     <option key={entite.id_entite} value={entite.id_entite}>
                       {entite.nom} ({entite.type_entite})
@@ -239,7 +281,7 @@ export function Delegations({
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                Droit delegue <span className="text-red-500">*</span>
+                Droit délégué <span className="text-red-500">*</span>
               </label>
               <select
                 value={newDelegation.right}

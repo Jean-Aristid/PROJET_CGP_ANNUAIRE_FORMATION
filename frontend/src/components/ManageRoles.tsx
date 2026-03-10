@@ -1,22 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { Shield, Check, X, FileText, AlertCircle, Plus } from "lucide-react";
-import { AcademicYear } from "../types";
+import { AcademicYear, UserRole, canRequestCustomRole, canReviewRoleRequests } from "../types";
 import { apiFetch } from "../lib/api";
 
 interface ManageRolesProps {
   currentYear: AcademicYear;
   authLogin: string | null;
+  userRole: UserRole;
 }
 
 type ApiRole = {
-  id_role?: string;
-  id?: string;
+  id: string;
   libelle: string;
   description?: string | null;
-  niveau_hierarchique?: number;
-  niveauHierarchique?: number;
-  is_global?: boolean;
-  isGlobal?: boolean;
+  niveauHierarchique: number;
+  isGlobal: boolean;
+  idComposante?: string | null;
 };
 
 type ApiRoleRequest = {
@@ -27,6 +26,10 @@ type ApiRoleRequest = {
   statut: "EN_ATTENTE" | "VALIDEE" | "REFUSEE";
   date_creation: string;
   date_decision: string | null;
+  createur_nom?: string | null;
+  createur_prenom?: string | null;
+  validateur_nom?: string | null;
+  validateur_prenom?: string | null;
 };
 
 const slugify = (value: string) =>
@@ -44,12 +47,11 @@ const formatDate = (value: string) => {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("fr-FR");
 };
 
-const getRoleId = (role: ApiRole) => role.id_role || role.id || "";
-const getRoleLevel = (role: ApiRole) =>
-  role.niveau_hierarchique ?? role.niveauHierarchique ?? 999;
-const isRoleGlobal = (role: ApiRole) => role.is_global ?? role.isGlobal ?? true;
+const getRoleId = (role: ApiRole) => role.id;
+const getRoleLevel = (role: ApiRole) => role.niveauHierarchique;
+const isRoleGlobal = (role: ApiRole) => role.isGlobal;
 
-export function ManageRoles({ currentYear, authLogin }: ManageRolesProps) {
+export function ManageRoles({ currentYear, authLogin, userRole }: ManageRolesProps) {
   const [roles, setRoles] = useState<ApiRole[]>([]);
   const [requests, setRequests] = useState<ApiRoleRequest[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,16 +62,18 @@ export function ManageRoles({ currentYear, authLogin }: ManageRolesProps) {
     description: "",
     justificatif: "",
   });
+  const canReview = canReviewRoleRequests(userRole);
+  const canRequest = canRequestCustomRole(userRole);
 
   const loadData = async () => {
     if (!authLogin) return;
     setLoading(true);
     setError(null);
     try {
-      const rolesData = await apiFetch<ApiRole[] | { items: ApiRole[] }>("/roles", {
+      const rolesData = await apiFetch<{ items: ApiRole[] }>("/roles", {
         login: authLogin,
       });
-      const roleItems = Array.isArray(rolesData) ? rolesData : rolesData.items || [];
+      const roleItems = rolesData.items || [];
       const sortedRoles = [...roleItems].sort(
         (a, b) => getRoleLevel(a) - getRoleLevel(b),
       );
@@ -106,7 +110,7 @@ export function ManageRoles({ currentYear, authLogin }: ManageRolesProps) {
   const handleSubmitRequest = async () => {
     if (!authLogin) return;
     if (!newRequest.roleName.trim() || !newRequest.description.trim()) {
-      setError("Veuillez renseigner le role et la description");
+      setError("Veuillez renseigner le rôle et la description");
       return;
     }
 
@@ -159,8 +163,14 @@ export function ManageRoles({ currentYear, authLogin }: ManageRolesProps) {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-slate-900 mb-2">Gestion des roles</h2>
-        <p className="text-slate-600">Roles preetablis et demandes de roles specifiques</p>
+        <h2 className="text-slate-900 mb-2">
+          {canReview ? "Gestion des rôles" : "Demandes de rôles spécifiques"}
+        </h2>
+        <p className="text-slate-600">
+          {canReview
+            ? "Rôles préétablis et demandes de rôles spécifiques"
+            : "Soumettre et suivre vos demandes de rôles spécifiques"}
+        </p>
       </div>
 
       {error && (
@@ -169,113 +179,119 @@ export function ManageRoles({ currentYear, authLogin }: ManageRolesProps) {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
-          <h3 className="text-slate-900 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-indigo-600" />
-            Roles preetablis (globaux)
-          </h3>
-          <p className="text-sm text-slate-600 mt-1">
-            Roles communs a toutes les composantes
-          </p>
-        </div>
-        <div className="p-6">
-          {loading && globalRoles.length === 0 ? (
-            <div className="text-slate-500">Chargement...</div>
-          ) : (
-            <div className="space-y-3">
-              {globalRoles.map((role) => (
-                <div
-                  key={getRoleId(role)}
-                  className="flex items-start justify-between p-4 border border-slate-200 rounded-lg hover:border-indigo-300 transition-colors"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h4 className="text-slate-900 font-medium">{role.libelle}</h4>
-                      <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs">
-                        Niveau {getRoleLevel(role)}
-                      </span>
-                    </div>
-                    <p className="text-sm text-slate-600">
-                      {role.description || getRoleId(role)}
-                    </p>
-                  </div>
-                  <div className="ml-4">
-                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs flex items-center gap-1">
-                      <Check className="w-3 h-3" />
-                      Actif
-                    </span>
-                  </div>
-                </div>
-              ))}
-              {globalRoles.length === 0 && (
-                <div className="text-slate-500">Aucun role global</div>
-              )}
+      {canReview && (
+        <>
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+              <h3 className="text-slate-900 flex items-center gap-2">
+                <Shield className="w-5 h-5 text-indigo-600" />
+                Rôles préétablis (globaux)
+              </h3>
+              <p className="text-sm text-slate-600 mt-1">
+                Rôles communs à toutes les composantes
+              </p>
             </div>
-          )}
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
-          <h3 className="text-slate-900 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-amber-600" />
-            Roles specifiques
-          </h3>
-          <p className="text-sm text-slate-600 mt-1">Roles valides par services centraux</p>
-        </div>
-        <div className="p-6">
-          {customRoles.length === 0 ? (
-            <div className="text-slate-500">Aucun role specifique</div>
-          ) : (
-            <div className="space-y-3">
-              {customRoles.map((role) => (
-                <div key={getRoleId(role)} className="p-4 border border-slate-200 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-slate-900 font-medium">{role.libelle}</div>
-                      <div className="text-sm text-slate-600">
-                        {role.description || getRoleId(role)}
+            <div className="p-6">
+              {loading && globalRoles.length === 0 ? (
+                <div className="text-slate-500">Chargement...</div>
+              ) : (
+                <div className="space-y-3">
+                  {globalRoles.map((role) => (
+                    <div
+                      key={getRoleId(role)}
+                      className="flex items-start justify-between p-4 border border-slate-200 rounded-lg hover:border-indigo-300 transition-colors"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h4 className="text-slate-900 font-medium">{role.libelle}</h4>
+                          <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs">
+                            Niveau {getRoleLevel(role)}
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-600">
+                          {role.description || role.libelle || getRoleId(role)}
+                        </p>
+                      </div>
+                      <div className="ml-4">
+                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs flex items-center gap-1">
+                          <Check className="w-3 h-3" />
+                          Actif
+                        </span>
                       </div>
                     </div>
-                    <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs">
-                      Specifique
-                    </span>
-                  </div>
+                  ))}
+                  {globalRoles.length === 0 && (
+                    <div className="text-slate-500">Aucun rôle global</div>
+                  )}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+              <h3 className="text-slate-900 flex items-center gap-2">
+                <Shield className="w-5 h-5 text-amber-600" />
+                Rôles spécifiques
+              </h3>
+              <p className="text-sm text-slate-600 mt-1">Rôles validés par les services centraux</p>
+            </div>
+            <div className="p-6">
+              {customRoles.length === 0 ? (
+                <div className="text-slate-500">Aucun rôle spécifique</div>
+              ) : (
+                <div className="space-y-3">
+                  {customRoles.map((role) => (
+                    <div key={getRoleId(role)} className="p-4 border border-slate-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-slate-900 font-medium">{role.libelle}</div>
+                          <div className="text-sm text-slate-600">
+                            {role.description || role.libelle || getRoleId(role)}
+                          </div>
+                        </div>
+                        <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs">
+                          Spécifique
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200">
         <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
           <div>
             <h3 className="text-slate-900 flex items-center gap-2">
               <FileText className="w-5 h-5 text-orange-600" />
-              Demandes de roles
+              Demandes de rôles
             </h3>
             <p className="text-sm text-slate-600 mt-1">
               Roles propres a certaines composantes - validation par services centraux
             </p>
           </div>
-          <button
-            onClick={() => setShowRequestForm(!showRequestForm)}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Nouvelle demande
-          </button>
+          {canRequest && (
+            <button
+              onClick={() => setShowRequestForm(!showRequestForm)}
+              className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Nouvelle demande
+            </button>
+          )}
         </div>
 
-        {showRequestForm && (
+        {showRequestForm && canRequest && (
           <div className="p-6 border-b border-slate-200 bg-orange-50">
-            <h4 className="text-slate-900 mb-4">Demander un role specifique</h4>
+            <h4 className="text-slate-900 mb-4">Demander un rôle spécifique</h4>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Nom du role propose <span className="text-red-500">*</span>
+                  Nom du rôle proposé <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -294,7 +310,7 @@ export function ManageRoles({ currentYear, authLogin }: ManageRolesProps) {
                   onChange={(e) => setNewRequest({ ...newRequest, description: e.target.value })}
                   rows={4}
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                  placeholder="Decrivez le role et la justification"
+                  placeholder="Décrivez le rôle et la justification"
                 />
               </div>
               <div>
@@ -345,11 +361,23 @@ export function ManageRoles({ currentYear, authLogin }: ManageRolesProps) {
                     </div>
                     <StatusBadge status={request.statut} />
                   </div>
-                  <div className="text-xs text-slate-500 flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4" />
-                    Demande du {formatDate(request.date_creation)}
+                  <div className="text-xs text-slate-500 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      <span>
+                        Demandé le {formatDate(request.date_creation)}
+                        {(request.createur_nom || request.createur_prenom) && (
+                          <> par <span className="font-medium text-slate-700">
+                            {`${request.createur_prenom || ""} ${request.createur_nom || ""}`.trim()}
+                          </span></>
+                        )}
+                      </span>
+                    </div>
+                    {request.justificatif && (
+                      <div className="text-slate-400 italic pl-5">{request.justificatif}</div>
+                    )}
                   </div>
-                  {request.statut === "EN_ATTENTE" && (
+                  {request.statut === "EN_ATTENTE" && canReview && (
                     <div className="mt-4 flex gap-2">
                       <button
                         onClick={() => handleReviewRequest(request, "VALIDEE")}
@@ -367,8 +395,24 @@ export function ManageRoles({ currentYear, authLogin }: ManageRolesProps) {
                       </button>
                     </div>
                   )}
-                  {request.statut !== "EN_ATTENTE" && request.date_decision && (
-                    <div className="text-xs text-slate-500 mt-2">Decision le {formatDate(request.date_decision)}</div>
+                  {request.statut !== "EN_ATTENTE" && (
+                    <div className="mt-3 text-xs text-slate-500 flex items-center gap-1.5">
+                      {request.statut === "VALIDEE"
+                        ? <Check className="w-3.5 h-3.5 text-green-600" />
+                        : <X className="w-3.5 h-3.5 text-red-600" />
+                      }
+                      <span>
+                        {request.statut === "VALIDEE" ? "Validé" : "Refusé"}
+                        {(request.validateur_nom || request.validateur_prenom) && (
+                          <> par <span className="font-medium text-slate-700">
+                            {`${request.validateur_prenom || ""} ${request.validateur_nom || ""}`.trim()}
+                          </span></>
+                        )}
+                        {request.date_decision && (
+                          <> le <span className="font-medium">{formatDate(request.date_decision)}</span></>
+                        )}
+                      </span>
+                    </div>
                   )}
                 </div>
               ))}

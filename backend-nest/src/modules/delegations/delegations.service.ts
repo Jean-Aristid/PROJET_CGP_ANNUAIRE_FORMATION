@@ -1,13 +1,36 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateDelegationDto } from './dto/create-delegation.dto';
+import type { CurrentUser } from '../../common/types/current-user';
+import { ROLE_IDS } from '../../auth/roles.constants';
+import { DelegationsListQueryDto } from './dto/delegations-list-query.dto';
 
 @Injectable()
 export class DelegationsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list() {
+  async list(user: CurrentUser, query?: DelegationsListQueryDto) {
+    const isCentral = this.isServicesCentraux(user);
+    const where = {
+      ...(isCentral
+        ? {}
+        : {
+            OR: [
+              { delegant_id: BigInt(user.userId) },
+              { delegataire_id: BigInt(user.userId) },
+            ],
+          }),
+      ...(query?.statut ? { statut: query.statut as any } : {}),
+      ...(query?.entiteId ? { id_entite: BigInt(query.entiteId) } : {}),
+    };
+
     const items = await this.prisma.delegation.findMany({
+      where,
       orderBy: { date_debut: 'desc' },
       include: {
         utilisateur_delegation_delegant_idToutilisateur: true,
@@ -19,7 +42,26 @@ export class DelegationsService {
     return items.map((item) => this.mapDelegation(item));
   }
 
-  async create(delegantId: string, payload: CreateDelegationDto) {
+  async create(delegantId: string, payload: CreateDelegationDto, user?: CurrentUser) {
+    if (String(payload.delegataire_id) === delegantId) {
+      throw new BadRequestException('delegataire_id must differ from delegant');
+    }
+
+    // Vérifier que le délégant a bien une affectation sur l'entité cible
+    if (user && !this.isServicesCentraux(user)) {
+      const hasEntiteAccess = await this.prisma.affectation.findFirst({
+        where: {
+          id_user: BigInt(delegantId),
+          id_entite: BigInt(payload.id_entite),
+        },
+      });
+      if (!hasEntiteAccess) {
+        throw new ForbiddenException(
+          "Vous n'avez pas d'affectation sur cette entité et ne pouvez pas y déléguer des droits",
+        );
+      }
+    }
+
     const created = await this.prisma.delegation.create({
       data: {
         delegant_id: BigInt(delegantId),
@@ -42,12 +84,26 @@ export class DelegationsService {
     }) ?? created);
   }
 
-  async revoke(id: string) {
+  async revoke(user: CurrentUser, id: string) {
     let parsedId: bigint;
     try {
       parsedId = BigInt(id);
     } catch {
       throw new NotFoundException('Delegation not found');
+    }
+
+    const delegation = await this.prisma.delegation.findUnique({
+      where: { id_delegation: parsedId },
+    });
+    if (!delegation) {
+      throw new NotFoundException('Delegation not found');
+    }
+
+    if (
+      !this.isServicesCentraux(user) &&
+      String(delegation.delegant_id) !== user.userId
+    ) {
+      throw new ForbiddenException('Only delegant can revoke this delegation');
     }
 
     const updated = await this.prisma.delegation.update({
@@ -66,6 +122,39 @@ export class DelegationsService {
         entite_structure: true,
       },
     }) ?? updated);
+  }
+
+  async exportCsv(user: CurrentUser, query?: DelegationsListQueryDto): Promise<string> {
+    const items = await this.list(user, query);
+    const header = [
+      'id_delegation',
+      'delegant_nom',
+      'delegataire_nom',
+      'entite_nom',
+      'type_droit',
+      'date_debut',
+      'date_fin',
+      'statut',
+    ].join(',');
+
+    const body = items
+      .map((item) =>
+        [
+          item.id_delegation,
+          item.delegant_nom ?? '',
+          item.delegataire_nom ?? '',
+          item.entite_nom ?? '',
+          item.type_droit ?? '',
+          item.date_debut,
+          item.date_fin ?? '',
+          item.statut,
+        ]
+          .map((value) => `"${String(value).replace(/"/g, '""')}"`)
+          .join(','),
+      )
+      .join('\n');
+
+    return `${header}\n${body}`;
   }
 
   private mapDelegation(item: {
@@ -96,5 +185,11 @@ export class DelegationsService {
       delegataire_nom: item.utilisateur_delegation_delegataire_idToutilisateur?.nom ?? null,
       entite_nom: item.entite_structure?.nom ?? null,
     };
+  }
+
+  private isServicesCentraux(user: CurrentUser): boolean {
+    return user.affectations.some(
+      (affectation) => affectation.roleId === ROLE_IDS.SERVICES_CENTRAUX,
+    );
   }
 }

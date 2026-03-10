@@ -19,29 +19,6 @@ services:
       timeout: 5s
       retries: 10
 
-  backend:
-    profiles:
-      - legacy
-    build:
-      context: ./backend
-    restart: unless-stopped
-    environment:
-      NODE_ENV: development
-      PORT: "3001"
-      DB_HOST: db
-      DB_PORT: "5432"
-      DB_USER: ${POSTGRES_USER:-postgres}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-1234}
-      DB_NAME: ${POSTGRES_DB:-CGP}
-    depends_on:
-      db:
-        condition: service_healthy
-    ports:
-      - "${BACKEND_PORT:-3001}:3001"
-    volumes:
-      - ./backend:/app
-      - backend-node-modules:/app/node_modules
-
   backend-nest:
     build:
       context: ./backend-nest
@@ -58,7 +35,14 @@ services:
       - "${BACKEND_PORT:-3001}:3001"
     volumes:
       - ./backend-nest:/app
+      - ./files:/app/files:ro
       - backend-nest-node-modules:/app/node_modules
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/api/health >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 40s
 
   frontend:
     build:
@@ -68,7 +52,8 @@ services:
       CHOKIDAR_USEPOLLING: "true"
       VITE_API_TARGET: "http://backend-nest:3001"
     depends_on:
-      - backend-nest
+      backend-nest:
+        condition: service_healthy
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     volumes:
@@ -77,6 +62,5 @@ services:
 
 volumes:
   db-data:
-  backend-node-modules:
   backend-nest-node-modules:
   frontend-node-modules:

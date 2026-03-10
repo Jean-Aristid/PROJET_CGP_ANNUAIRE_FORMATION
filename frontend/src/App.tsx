@@ -10,14 +10,22 @@ import { Delegations } from "./components/Delegations";
 import { YearManagement } from "./components/YearManagement";
 import { ErrorReports } from "./components/ErrorReports";
 import { UserProfile } from "./components/UserProfile";
+import { AuditLogs } from "./components/AuditLogs";
+import { ManageStructures } from "./components/ManageStructures";
 import {
   AcademicYear,
+  canAccessFilteredQueries,
+  canImportData,
+  canManageDelegations,
+  canManageUsers,
+  canRequestCustomRole,
   EntiteStructure,
   User,
   UserRole,
   View,
-  canManageDelegations,
   canManageYears,
+  canManageStructures,
+  canReviewRoleRequests,
   getRoleLabel,
 } from "./types";
 import {
@@ -33,9 +41,11 @@ import {
   UserCircle,
   Users,
   Download,
+  Building2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { apiFetch, clearStoredLogin, getStoredLogin, setStoredLogin } from "./lib/api";
+import { NotificationBell } from "./components/NotificationBell";
 
 type ApiYear = {
   id_annee: number;
@@ -116,7 +126,7 @@ const navSections: NavSection[] = [
         id: "import-export",
         label: "Import / Export",
         icon: Download,
-        isVisible: () => true,
+        isVisible: (role) => canImportData(role) || canAccessFilteredQueries(role),
       },
     ],
   },
@@ -127,25 +137,37 @@ const navSections: NavSection[] = [
         id: "manage-responsibles",
         label: "Responsables",
         icon: Users,
-        isVisible: (role) => role !== "utilisateur-simple" && role !== "responsable-annee",
+        isVisible: () => true,
+      },
+      {
+        id: "manage-structures",
+        label: "Fiches structures",
+        icon: Building2,
+        isVisible: (role) => canManageStructures(role),
       },
       {
         id: "manage-roles",
-        label: "Roles",
+        label: "Demandes de rôles",
         icon: Shield,
-        isVisible: (role) => role === "administrateur" || role === "services-centraux",
+        isVisible: (role) => canReviewRoleRequests(role) || canRequestCustomRole(role),
       },
       {
         id: "delegations",
-        label: "Delegations",
+        label: "Délégations",
         icon: UserCircle,
         isVisible: (role) => canManageDelegations(role),
       },
       {
         id: "year-management",
-        label: "Annees",
+        label: "Années",
         icon: Calendar,
         isVisible: (role) => canManageYears(role),
+      },
+      {
+        id: "audit-logs",
+        label: "Audit",
+        icon: Shield,
+        isVisible: (role) => role === "services-centraux",
       },
       {
         id: "error-reports",
@@ -189,12 +211,17 @@ const ROLE_HIERARCHY: Record<string, number> = {
   "lecture-seule": 99,
 };
 
+const toSafeId = (value: string): number => {
+  const n = Number.parseInt(value, 10);
+  return Number.isNaN(n) ? 0 : n;
+};
+
 const normalizeAffectations = (affectations: ApiCurrentAffectation[]): ApiAffectation[] =>
   (affectations || []).map((aff) => ({
-    id_affectation: Number.parseInt(aff.affectationId, 10) || 0,
+    id_affectation: toSafeId(aff.affectationId),
     id_role: aff.roleId,
-    id_entite: Number.parseInt(aff.entiteId, 10) || 0,
-    id_annee: Number.parseInt(aff.anneeId, 10) || 0,
+    id_entite: toSafeId(aff.entiteId),
+    id_annee: toSafeId(aff.anneeId),
     niveau_hierarchique: ROLE_HIERARCHY[aff.roleId] ?? 999,
     entite_name: aff.entiteName ?? null,
     entite_type: aff.entiteType ?? null,
@@ -527,6 +554,7 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-4">
+              <NotificationBell authLogin={authLogin} />
               <div className="relative">
                 <button
                   onClick={() => setYearSelectorOpen(!yearSelectorOpen)}
@@ -668,7 +696,12 @@ export default function App() {
         <main className="flex-1 min-w-0 overflow-y-auto px-4 sm:px-6 lg:px-10 py-6">
           <div className="mx-auto max-w-6xl">
             {currentView === "dashboard" && (
-              <Dashboard user={currentUser} currentYear={currentYear} onNavigate={setCurrentView} />
+              <Dashboard
+                user={currentUser}
+                currentYear={currentYear}
+                onNavigate={setCurrentView}
+                authLogin={authLogin}
+              />
             )}
             {currentView === "search" && (
               <DirectorySearch
@@ -693,8 +726,20 @@ export default function App() {
                 authLogin={authLogin}
               />
             )}
+            {currentView === "manage-structures" && (
+              <ManageStructures
+                userRole={currentUser.role}
+                currentYear={currentYear}
+                entites={entites}
+                authLogin={authLogin}
+              />
+            )}
             {currentView === "manage-roles" && (
-              <ManageRoles currentYear={currentYear} authLogin={authLogin} />
+              <ManageRoles
+                currentYear={currentYear}
+                authLogin={authLogin}
+                userRole={currentUser.role}
+              />
             )}
             {currentView === "org-chart" && (
               <OrgChart
@@ -726,6 +771,14 @@ export default function App() {
                 currentYear={currentYear}
                 authLogin={authLogin}
                 onRefresh={refreshYears}
+                onNavigateToImport={() => handleNavigate("import-export")}
+              />
+            )}
+            {currentView === "audit-logs" && (
+              <AuditLogs
+                authLogin={authLogin}
+                currentYear={currentYear}
+                entites={entites}
               />
             )}
             {currentView === "error-reports" && (

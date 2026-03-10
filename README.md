@@ -3,8 +3,7 @@
 ## Stack
 
 - `frontend/` : React (Vite) — UI
-- `backend/` : Node.js (Express) — API
-- `backend-nest/` : NestJS + TypeScript + Prisma — API (par défaut en Docker)
+- `backend-nest/` : NestJS + TypeScript + Prisma — API
 - `script/db/` : scripts SQL Postgres (manuel)
 - `script/db/init/` : scripts SQL Postgres (init automatique)
 
@@ -14,27 +13,36 @@
 - Front : http://localhost:5173
 - Back : http://localhost:3001/api/health
 - Postgres : localhost:5432
-Note : le service `backend` (Express) est en profil `legacy`. Le service `backend-nest` (NestJS) est lancé par défaut.
+- Le backend est considéré "ready" uniquement quand `/api/health` répond et que la DB est joignable.
+- Le frontend attend automatiquement que le backend soit `healthy` avant de démarrer.
 
 ### Démarrage
 
 ```bash
 docker compose up -d --build
+docker compose ps
 docker compose logs -f backend-nest
 ```
+
+Attendu dans `docker compose ps` :
+
+- `db` : `healthy`
+- `backend-nest` : `healthy`
+- `frontend` : `up`
+
+### Vérification login après démarrage
+
+```bash
+curl -i -H "x-user-login: sc.admin" http://localhost:5173/api/auth/me
+```
+
+Réponse attendue : `HTTP/1.1 200 OK`.
 
 ### Lancer un service (optionnel)
 
 ```bash
 docker compose up --build frontend
-docker compose up --build backend
 docker compose up --build db
-```
-
-Pour lancer l'ancien backend (Express) :
-
-```bash
-docker compose --profile legacy up --build backend
 ```
 
 ### Réinitialiser la base (rejouer les scripts `script/db/init/`)
@@ -43,28 +51,17 @@ docker compose --profile legacy up --build backend
 docker compose down -v
 docker compose up --build
 ```
-#### Fix immédiat : recréer les conteneurs + réseau proprement
-Fais un reset “safe” (ne touche pas aux volumes) :
+
+### Recréer les conteneurs proprement (sans supprimer la base)
+
 ```bash
 docker compose down
-docker network prune -f
 docker compose up -d --build --force-recreate
-
 ```
 
 ## Sans Docker (local)
 
-### Backend
-
-```bash
-cd backend
-npm install
-npm run dev
-```
-
-Variables utiles (si Postgres tourne en local) : `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`.
-
-### Backend NestJS (nouveau)
+### Backend NestJS
 
 ```bash
 cd backend-nest
@@ -79,7 +76,7 @@ Seed des comptes mock (optionnel) :
 npm run seed
 ```
 
-Auth mock (dev uniquement) : ajoute le header `x-user-login` (ex: `dc.infocom`).
+Auth mock (dev uniquement) : ajoute le header `x-user-login` (ex: `dc.infocom`, `da.infocom`, `sc.admin`).
 
 ### Frontend
 
@@ -89,7 +86,7 @@ npm install
 npm run dev
 ```
 
-Note : en local, le proxy `/api` utilise `http://localhost:3001` par défaut. En Docker, `VITE_API_TARGET` est injecté vers `http://backend:3001`.
+Note : en local, le proxy `/api` utilise `http://localhost:3001` par défaut. En Docker, `VITE_API_TARGET` est injecté vers `http://backend-nest:3001`.
 
 ## Dépannage Docker (Ubuntu)
 

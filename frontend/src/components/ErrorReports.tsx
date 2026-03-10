@@ -35,7 +35,7 @@ type ApiSignalement = {
 const statusMap = {
   OUVERT: { label: "Ouvert", color: "bg-orange-100 text-orange-700", icon: Clock },
   EN_COURS: { label: "En cours", color: "bg-blue-100 text-blue-700", icon: Clock },
-  CLOTURE: { label: "Cloture", color: "bg-green-100 text-green-700", icon: CheckCircle },
+  CLOTURE: { label: "Clôturé", color: "bg-green-100 text-green-700", icon: CheckCircle },
 };
 
 export function ErrorReports({ userRole, currentYear, authLogin, entites, currentUserId }: ErrorReportsProps) {
@@ -52,7 +52,6 @@ export function ErrorReports({ userRole, currentYear, authLogin, entites, curren
     userRole === "directeur-composante" ||
     userRole === "directeur-administratif" ||
     userRole === "directeur-administratif-adjoint" ||
-    userRole === "administrateur" ||
     userRole === "services-centraux";
 
   const loadReports = async () => {
@@ -125,7 +124,7 @@ export function ErrorReports({ userRole, currentYear, authLogin, entites, curren
   const handleCloseReport = async (reportId: number) => {
     if (!authLogin) return;
     if (!closingComment.trim()) {
-      setError("Le commentaire de cloture est obligatoire");
+      setError("Le commentaire de clôture est obligatoire");
       return;
     }
     setLoading(true);
@@ -140,7 +139,7 @@ export function ErrorReports({ userRole, currentYear, authLogin, entites, curren
       setClosingComment("");
       await loadReports();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de la cloture");
+      setError(err instanceof Error ? err.message : "Erreur lors de la clôture");
     } finally {
       setLoading(false);
     }
@@ -156,7 +155,11 @@ export function ErrorReports({ userRole, currentYear, authLogin, entites, curren
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-slate-900 mb-2">Signalements d'erreurs</h2>
-          <p className="text-slate-600">Signaler une erreur dans l'annuaire</p>
+          <p className="text-slate-600">
+            {canManage
+              ? "Consulter et traiter les signalements (prise en charge, clôture)."
+              : "Signaler une erreur dans l'annuaire. Le suivi des signalements est assuré par les directeurs et les services centraux."}
+          </p>
         </div>
         <button
           onClick={() => setShowReportForm(!showReportForm)}
@@ -184,7 +187,7 @@ export function ErrorReports({ userRole, currentYear, authLogin, entites, curren
                 onChange={(e) => setForm({ ...form, entiteId: e.target.value })}
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
               >
-                <option value="">Selectionner une structure</option>
+                <option value="">Sélectionner une structure</option>
                 {entites.map((entite) => (
                   <option key={entite.id_entite} value={entite.id_entite}>
                     {entite.nom} ({entite.type_entite})
@@ -202,7 +205,7 @@ export function ErrorReports({ userRole, currentYear, authLogin, entites, curren
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 rows={4}
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                placeholder="Decrivez l'erreur constatee et la correction a apporter..."
+                placeholder="Décrivez l'erreur constatée et la correction à apporter..."
               />
             </div>
 
@@ -282,11 +285,29 @@ export function ErrorReports({ userRole, currentYear, authLogin, entites, curren
                       </span>
                     </div>
                     <div className="mt-3 text-xs text-slate-500 space-y-1">
-                      <div>Cree le {new Date(report.date_creation).toLocaleDateString("fr-FR")}</div>
-                      <div>Auteur: {auteur}</div>
-                      {report.statut !== "OUVERT" && <div>Pris en charge par: {traitant}</div>}
-                      {report.statut === "CLOTURE" && <div>Cloture par: {cloture}</div>}
+                      <div>Créé le {new Date(report.date_creation).toLocaleDateString("fr-FR")}</div>
+                      <div>Auteur : {auteur}</div>
+                      {report.statut !== "OUVERT" && (
+                        <div className="flex items-center gap-1">
+                          <span>Pris en charge par : <span className="font-medium text-slate-700">{traitant}</span></span>
+                          {report.date_prise_en_charge && (
+                            <span className="text-slate-400">
+                              — le {new Date(report.date_prise_en_charge).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                              {" à "}
+                              {new Date(report.date_prise_en_charge).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {report.statut === "CLOTURE" && <div>Clôturé par : {cloture}</div>}
                     </div>
+
+                    {report.statut !== "OUVERT" && report.commentaire_prise_en_charge && (
+                      <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                        <span className="font-medium">Note de prise en charge :</span>{" "}
+                        {report.commentaire_prise_en_charge}
+                      </div>
+                    )}
 
                     {report.statut === "OUVERT" && (
                       <div className="mt-4">
@@ -335,7 +356,15 @@ export function ErrorReports({ userRole, currentYear, authLogin, entites, curren
                     )}
 
                     {report.statut === "EN_COURS" && !isMine && (
-                      <div className="mt-4 text-xs text-slate-500">En cours de traitement.</div>
+                      <div className="mt-4 flex items-center gap-2 text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                        <Clock className="w-3.5 h-3.5 shrink-0" />
+                        <span>
+                          En cours de traitement par <span className="font-medium">{traitant}</span>
+                          {report.date_prise_en_charge && (
+                            <> depuis le {new Date(report.date_prise_en_charge).toLocaleDateString("fr-FR")}</>
+                          )}
+                        </span>
+                      </div>
                     )}
 
                     {report.statut === "CLOTURE" && report.commentaire_cloture && (
