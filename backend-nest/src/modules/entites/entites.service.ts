@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import type { UpdateEntiteDto } from './dto/update-entite.dto';
+import { isSupportRole } from '../../common/utils/role-support.utils';
 
 export type EntiteListItem = {
   id_entite: number;
@@ -10,21 +11,20 @@ export type EntiteListItem = {
   nom: string;
   tel_service: string | null;
   bureau_service: string | null;
+  /** Code métier de la composante (ex. "903"), null pour les autres types */
+  code_composante?: string | null;
 };
 
-/** Rôle considéré comme "responsable" (direction, responsable de formation, etc.) */
-const RESPONSABLE_ROLE_IDS = new Set([
-  'directeur-composante',
-  'directeur-administratif',
-  'directeur-administratif-adjoint',
-  'directeur-departement',
-  'directeur-mention',
-  'directeur-specialite',
-  'responsable-formation',
-  'responsable-annee',
+/** Rôles qui ne sont jamais des "responsables" d'entité (accès global ou purement lecture) */
+const NON_RESPONSABLE_ROLES = new Set([
+  'services-centraux',
+  'administrateur',
+  'utilisateur-simple',
+  'lecture-seule',
 ]);
 
 export type AffectationPerson = {
+  id_affectation: number;
   id_user: number;
   nom: string;
   prenom: string;
@@ -34,11 +34,23 @@ export type AffectationPerson = {
   id_role: string;
   role_libelle: string;
   is_responsable: boolean;
+  /** Coordonnées fonctionnelles liées à ce rôle (email fonctionnel, tél bureau dédié) */
+  contact?: {
+    id_contact_role: number;
+    email_fonctionnelle: string | null;
+    telephone: string | null;
+    bureau: string | null;
+  } | null;
 };
 
 /** Base + champs optionnels par type d'entité (sans listes / comptages) */
 export type EntiteDetailBase = EntiteListItem & {
   site_web?: string | null;
+  code_composante?: string | null;
+  type_composante?: string | null;
+  mail_fonctionnel?: string | null;
+  mail_institutionnel?: string | null;
+  campus?: string | null;
   code_interne?: string | null;
   type_diplome?: string | null;
   code_parcours?: string | null;
@@ -67,7 +79,14 @@ export class EntitesService {
     nom: string;
     tel_service: string | null;
     bureau_service: string | null;
-    composante?: { site_web: string | null } | null;
+    composante?: {
+      site_web: string | null;
+      code_composante: string | null;
+      type_composante: string | null;
+      mail_fonctionnel: string | null;
+      mail_institutionnel: string | null;
+      campus: string | null;
+    } | null;
     departement?: { code_interne: string | null } | null;
     mention?: { type_diplome: string | null } | null;
     parcours?: { code_parcours: string | null } | null;
@@ -83,7 +102,14 @@ export class EntitesService {
       bureau_service: item.bureau_service,
     };
     const detail: EntiteDetailBase = { ...base };
-    if (item.composante) detail.site_web = item.composante.site_web;
+    if (item.composante) {
+      detail.site_web = item.composante.site_web;
+      detail.code_composante = item.composante.code_composante;
+      detail.type_composante = item.composante.type_composante;
+      detail.mail_fonctionnel = item.composante.mail_fonctionnel;
+      detail.mail_institutionnel = item.composante.mail_institutionnel;
+      detail.campus = item.composante.campus;
+    }
     if (item.departement) detail.code_interne = item.departement.code_interne;
     if (item.mention) detail.type_diplome = item.mention.type_diplome;
     if (item.parcours) detail.code_parcours = item.parcours.code_parcours;
@@ -95,6 +121,7 @@ export class EntitesService {
     const items = await this.prisma.entite_structure.findMany({
       where: yearId ? { id_annee: BigInt(yearId) } : undefined,
       orderBy: { id_entite: 'asc' },
+      include: { composante: { select: { code_composante: true } } },
     });
     return items.map((item) => ({
       id_entite: Number(item.id_entite),
@@ -104,6 +131,7 @@ export class EntitesService {
       nom: item.nom,
       tel_service: item.tel_service,
       bureau_service: item.bureau_service,
+      code_composante: item.composante?.code_composante ?? null,
     }));
   }
 
@@ -156,6 +184,7 @@ export class EntitesService {
         include: {
           utilisateur: true,
           role: true,
+          contact_role: true,
         },
       }),
       this.prisma.delegation.count({ where: { id_entite: BigInt(id) } }),
@@ -171,21 +200,35 @@ export class EntitesService {
             where: {
               id_entite: { in: descendantIdBigInts },
               id_annee: BigInt(idAnnee),
-              id_role: { in: [...RESPONSABLE_ROLE_IDS] },
+              id_role: { notIn: [...NON_RESPONSABLE_ROLES] },
             },
           });
 
-    const mapPerson = (a: (typeof affectations)[0]): AffectationPerson => ({
-      id_user: Number(a.id_user),
-      nom: a.utilisateur.nom,
-      prenom: a.utilisateur.prenom,
-      email_institutionnel: a.utilisateur.email_institutionnel,
-      telephone: a.utilisateur.telephone,
-      bureau: a.utilisateur.bureau,
-      id_role: a.id_role,
-      role_libelle: a.role?.libelle ?? a.id_role,
-      is_responsable: RESPONSABLE_ROLE_IDS.has(a.id_role),
-    });
+    const mapPerson = (a: (typeof affectations)[0]): AffectationPerson => {
+      const cr = (a as any).contact_role?.[0] ?? null;
+      return {
+        id_affectation: Number(a.id_affectation),
+        id_user: Number(a.id_user),
+        nom: a.utilisateur.nom,
+        prenom: a.utilisateur.prenom,
+        email_institutionnel: a.utilisateur.email_institutionnel,
+        telephone: a.utilisateur.telephone,
+        bureau: a.utilisateur.bureau,
+        id_role: a.id_role,
+        role_libelle: a.role?.libelle ?? a.id_role,
+        is_responsable:
+          !NON_RESPONSABLE_ROLES.has(a.id_role) &&
+          !isSupportRole(a.id_role, a.role?.libelle),
+        contact: cr
+          ? {
+              id_contact_role: Number(cr.id_contact_role),
+              email_fonctionnelle: cr.email_fonctionnelle,
+              telephone: cr.telephone,
+              bureau: cr.bureau,
+            }
+          : null,
+      };
+    };
 
     const allPeople = affectations.map(mapPerson);
     const responsables = allPeople.filter((p) => p.is_responsable);
