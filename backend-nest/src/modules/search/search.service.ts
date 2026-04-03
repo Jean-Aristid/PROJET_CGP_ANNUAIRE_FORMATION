@@ -8,26 +8,47 @@ import { SearchQueryDto } from './dto/search-query.dto';
 export class SearchService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private parseEntiteIds(raw?: string): bigint[] | null {
+    if (!raw) return null;
+    const ids = raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((s) => BigInt(s));
+    return ids.length > 0 ? ids : null;
+  }
+
   async responsables(query: SearchQueryDto) {
     const { page, pageSize, skip } = normalizePagination({
       page: query.page,
       pageSize: query.pageSize,
     });
 
+    const entiteIds = this.parseEntiteIds(query.entiteIds);
+
     const where: Prisma.affectationWhereInput = {
       ...(query.yearId ? { id_annee: BigInt(query.yearId) } : {}),
       ...(query.roleId ? { id_role: query.roleId } : {}),
+      ...(entiteIds ? { id_entite: { in: entiteIds } } : {}),
       ...(query.q
         ? {
             OR: [
               { utilisateur: { nom: { contains: query.q, mode: 'insensitive' as const } } },
               { utilisateur: { prenom: { contains: query.q, mode: 'insensitive' as const } } },
+              { utilisateur: { login: { contains: query.q, mode: 'insensitive' as const } } },
               {
                 utilisateur: {
                   email_institutionnel: { contains: query.q, mode: 'insensitive' as const },
                 },
               },
               { entite_structure: { nom: { contains: query.q, mode: 'insensitive' as const } } },
+              {
+                entite_structure: {
+                  composante: {
+                    code_composante: { contains: query.q, mode: 'insensitive' as const },
+                  },
+                },
+              },
             ],
           }
         : {}),
@@ -74,11 +95,30 @@ export class SearchService {
       pageSize: query.pageSize,
     });
 
+    const entiteIds = this.parseEntiteIds(query.entiteIds);
     const formationTypes: entite_type[] = ['MENTION', 'PARCOURS', 'NIVEAU'];
+
+    // Filtrer par type précis si fourni (MENTION, PARCOURS, NIVEAU), sinon tous
+    const typedFormation = this.toEntiteType(query.typeEntite);
+    const typeFilter = typedFormation
+      ? { type_entite: typedFormation as entite_type }
+      : { type_entite: { in: formationTypes } };
+
     const where: Prisma.entite_structureWhereInput = {
       ...(query.yearId ? { id_annee: BigInt(query.yearId) } : {}),
-      type_entite: { in: formationTypes },
-      ...(query.q ? { nom: { contains: query.q, mode: 'insensitive' as const } } : {}),
+      ...typeFilter,
+      ...(entiteIds ? { id_entite: { in: entiteIds } } : {}),
+      ...(query.typeDiplome ? { type_diplome: { contains: query.typeDiplome, mode: 'insensitive' as const } } : {}),
+      ...(query.q
+        ? {
+            OR: [
+              { nom: { contains: query.q, mode: 'insensitive' as const } },
+              { parcours: { code_parcours: { contains: query.q, mode: 'insensitive' as const } } },
+              { niveau: { libelle_court: { contains: query.q, mode: 'insensitive' as const } } },
+              { mention: { type_diplome: { contains: query.q, mode: 'insensitive' as const } } },
+            ],
+          }
+        : {}),
     };
 
     const [entites, total] = await this.prisma.$transaction([
@@ -128,15 +168,37 @@ export class SearchService {
     });
 
     const typedEntite = this.toEntiteType(query.typeEntite);
+    const entiteIds = this.parseEntiteIds(query.entiteIds);
     const where: Prisma.entite_structureWhereInput = {
       ...(query.yearId ? { id_annee: BigInt(query.yearId) } : {}),
       ...(typedEntite ? { type_entite: typedEntite } : {}),
-      ...(query.q ? { nom: { contains: query.q, mode: 'insensitive' as const } } : {}),
+      ...(entiteIds ? { id_entite: { in: entiteIds } } : {}),
+      ...(query.q
+        ? {
+            OR: [
+              { nom: { contains: query.q, mode: 'insensitive' as const } },
+              {
+                composante: {
+                  code_composante: { contains: query.q, mode: 'insensitive' as const },
+                },
+              },
+              {
+                departement: {
+                  code_interne: { contains: query.q, mode: 'insensitive' as const },
+                },
+              },
+            ],
+          }
+        : {}),
     };
 
     const [entites, total] = await this.prisma.$transaction([
       this.prisma.entite_structure.findMany({
         where,
+        include: {
+          composante: { select: { code_composante: true } },
+          departement: { select: { code_interne: true } },
+        },
         orderBy: [{ type_entite: 'asc' }, { nom: 'asc' }],
         skip,
         take: pageSize,
@@ -153,6 +215,8 @@ export class SearchService {
         nom: entite.nom,
         tel_service: entite.tel_service,
         bureau_service: entite.bureau_service,
+        code_composante: entite.composante?.code_composante ?? null,
+        code_interne: entite.departement?.code_interne ?? null,
       })),
       page,
       pageSize,
@@ -166,8 +230,10 @@ export class SearchService {
       pageSize: query.pageSize,
     });
 
+    const entiteIds = this.parseEntiteIds(query.entiteIds);
     const where: Prisma.entite_structureWhereInput = {
       ...(query.yearId ? { id_annee: BigInt(query.yearId) } : {}),
+      ...(entiteIds ? { id_entite: { in: entiteIds } } : {}),
       ...(query.q ? { nom: { contains: query.q, mode: 'insensitive' as const } } : {}),
       OR: [{ tel_service: { not: null } }, { bureau_service: { not: null } }],
     };

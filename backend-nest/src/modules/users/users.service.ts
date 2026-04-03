@@ -15,6 +15,7 @@ const SORT_FIELDS: Record<string, Prisma.utilisateurOrderByWithRelationInput> = 
 };
 
 export interface UserRoleRow {
+  id_affectation: number;
   role: string;
   entite: string;
   id_entite: number;
@@ -28,6 +29,9 @@ export interface UserListItem {
   nom: string;
   prenom: string;
   email_institutionnel: string | null;
+  email_institutionnel_secondaire: string | null;
+  genre: string | null;
+  categorie: string | null;
   telephone: string | null;
   bureau: string | null;
   roles: UserRoleRow[];
@@ -185,11 +189,11 @@ export class UsersService {
     await this.prisma.utilisateur.update({
       where: { id_user: parsedId },
       data: {
-        nom: payload.nom,
-        prenom: payload.prenom,
-        email_institutionnel: payload.email_institutionnel,
-        telephone: payload.telephone,
-        bureau: payload.bureau,
+        ...(payload.nom !== undefined ? { nom: payload.nom } : {}),
+        ...(payload.prenom !== undefined ? { prenom: payload.prenom } : {}),
+        ...(payload.email_institutionnel !== undefined ? { email_institutionnel: payload.email_institutionnel } : {}),
+        ...(payload.telephone !== undefined ? { telephone: payload.telephone } : {}),
+        ...(payload.bureau !== undefined ? { bureau: payload.bureau } : {}),
       },
     });
 
@@ -227,9 +231,13 @@ export class UsersService {
     nom: string;
     prenom: string;
     email_institutionnel: string | null;
+    email_institutionnel_secondaire: string | null;
+    genre: string | null;
+    categorie: string | null;
     telephone: string | null;
     bureau: string | null;
     affectation: Array<{
+      id_affectation: bigint;
       id_role: string;
       id_entite: bigint;
       id_annee: bigint;
@@ -243,9 +251,13 @@ export class UsersService {
       nom: user.nom,
       prenom: user.prenom,
       email_institutionnel: user.email_institutionnel,
+      email_institutionnel_secondaire: user.email_institutionnel_secondaire,
+      genre: user.genre,
+      categorie: user.categorie,
       telephone: user.telephone,
       bureau: user.bureau,
       roles: (user.affectation || []).map((affectation) => ({
+        id_affectation: Number(affectation.id_affectation),
         role: affectation.id_role,
         entite: affectation.entite_structure?.nom ?? `Entite ${affectation.id_entite}`,
         id_entite: Number(affectation.id_entite),
