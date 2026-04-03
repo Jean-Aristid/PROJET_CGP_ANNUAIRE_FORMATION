@@ -70,6 +70,11 @@ type ApiCurrentUser = {
   nom: string;
   prenom: string;
   emailInstitutionnel?: string | null;
+  emailInstitutionnelSecondaire?: string | null;
+  genre?: string | null;
+  categorie?: string | null;
+  telephone?: string | null;
+  bureau?: string | null;
   affectations: ApiCurrentAffectation[];
 };
 
@@ -352,8 +357,11 @@ const buildUser = (
     lastName: apiUser.nom,
     role: getTopRole(affectations),
     email: apiUser.emailInstitutionnel || "",
-    phone: undefined,
-    office: undefined,
+    secondaryEmail: apiUser.emailInstitutionnelSecondaire || undefined,
+    genre: apiUser.genre || undefined,
+    category: apiUser.categorie || undefined,
+    phone: apiUser.telephone || undefined,
+    office: apiUser.bureau || undefined,
     component: component || undefined,
     roles,
   };
@@ -370,6 +378,8 @@ export default function App() {
   const [authLogin, setAuthLogin] = useState<string | null>(getStoredLogin());
   const [authError, setAuthError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [focusUserId, setFocusUserId] = useState<number | null>(null);
+  const [focusEntiteId, setFocusEntiteId] = useState<number | null>(null);
 
   const loadSession = async (login: string) => {
     setLoading(true);
@@ -464,7 +474,9 @@ export default function App() {
       .filter((section) => section.items.length > 0);
   }, [currentUser]);
 
-  const handleNavigate = (view: View) => {
+  const handleNavigate = (view: View, params?: { focusUserId?: number; focusEntiteId?: number }) => {
+    setFocusUserId(params?.focusUserId ?? null);
+    setFocusEntiteId(params?.focusEntiteId ?? null);
     setCurrentView(view);
     setMobileNavOpen(false);
   };
@@ -724,6 +736,7 @@ export default function App() {
                 currentYear={currentYear}
                 entites={entites}
                 authLogin={authLogin}
+                focusUserId={focusUserId}
               />
             )}
             {currentView === "manage-structures" && (
@@ -732,6 +745,7 @@ export default function App() {
                 currentYear={currentYear}
                 entites={entites}
                 authLogin={authLogin}
+                focusEntiteId={focusEntiteId}
               />
             )}
             {currentView === "manage-roles" && (
@@ -788,6 +802,12 @@ export default function App() {
                 authLogin={authLogin}
                 entites={entites}
                 currentUserId={currentUser.id}
+                onNavigate={(view, params) =>
+                  handleNavigate(view as import("./types").View, {
+                    focusUserId: params?.focusUserId as number | undefined,
+                    focusEntiteId: params?.focusEntiteId as number | undefined,
+                  })
+                }
               />
             )}
           </div>
