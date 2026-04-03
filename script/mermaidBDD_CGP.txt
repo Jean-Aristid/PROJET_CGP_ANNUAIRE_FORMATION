@@ -1,6 +1,6 @@
 erDiagram
     %% =========================================================
-    %% SCHÉMA BDD - ANNUAIRE USPN - VERSION SPRINT 2 (COHÉRENT TEXTE)
+    %% SCHÉMA BDD - ANNUAIRE USPN - VERSION SPRINT 4
     %% Notation : Crow's Foot (Pattes de corbeau)
     %% =========================================================
 
@@ -16,7 +16,6 @@ erDiagram
         int    id_annee_source FK "nullable (recopie depuis)"
     }
 
-    %% Recopie : une année peut être la source de plusieurs années
     ANNEE_UNIVERSITAIRE ||--o{ ANNEE_UNIVERSITAIRE : "Source de (recopie)"
 
 
@@ -33,48 +32,72 @@ erDiagram
         string bureau_service
     }
 
-    %% Une année contient des entités de structure
     ANNEE_UNIVERSITAIRE ||--o{ ENTITE_STRUCTURE : "Contient"
-
-    %% Hiérarchie interne (parent -> enfants)
     ENTITE_STRUCTURE ||--o{ ENTITE_STRUCTURE : "Contient (parent/enfant)"
 
-    %% Sous-types (optionnels, si tu veux garder l'héritage comme dans ton V4)
-    COMPOSANTE { int id_entite PK,FK string site_web }
-    DEPARTEMENT { int id_entite PK,FK string code_interne }
-    MENTION { int id_entite PK,FK string type_diplome }
-    PARCOURS { int id_entite PK,FK string code_parcours }
-    NIVEAU { int id_entite PK,FK string libelle_court }
+    COMPOSANTE {
+        int    id_entite PK,FK
+        string code_composante   "ex: 903 pour Institut Galilée"
+        string type_composante   "UFR/INSTITUT/IUT"
+        string site_web
+        string mail_fonctionnel  "lié à la fonction"
+        string mail_institutionnel
+        string campus
+    }
 
-    ENTITE_STRUCTURE ||--o| COMPOSANTE : "Est"
+    DEPARTEMENT { int id_entite PK,FK  string code_interne }
+
+    TYPE_DIPLOME {
+        int    id_type_diplome PK
+        string libelle           "39 types identifiés"
+        bool   is_active
+    }
+
+    MENTION {
+        int    id_entite PK,FK
+        string type_diplome      "texte libre (transitoire)"
+        int    cycle             "1=Licence/BUT  2=Master"
+        int    id_type_diplome FK "nullable — ref TYPE_DIPLOME"
+    }
+
+    PARCOURS { int id_entite PK,FK  string code_parcours }
+    NIVEAU   { int id_entite PK,FK  string libelle_court }
+
+    ENTITE_STRUCTURE ||--o| COMPOSANTE  : "Est"
     ENTITE_STRUCTURE ||--o| DEPARTEMENT : "Est"
-    ENTITE_STRUCTURE ||--o| MENTION : "Est"
-    ENTITE_STRUCTURE ||--o| PARCOURS : "Est"
-    ENTITE_STRUCTURE ||--o| NIVEAU : "Est"
+    ENTITE_STRUCTURE ||--o| MENTION     : "Est"
+    ENTITE_STRUCTURE ||--o| PARCOURS    : "Est"
+    ENTITE_STRUCTURE ||--o| NIVEAU      : "Est"
+    TYPE_DIPLOME     ||--o{ MENTION     : "Qualifie"
 
 
     %% ---------------------------------------------------------
-    %% BLOC 3 : UTILISATEURS + RÔLES + AFFECTATIONS + EMAILS FONCTIONNELS
+    %% BLOC 3 : UTILISATEURS + RÔLES + AFFECTATIONS + CONTACTS
     %% ---------------------------------------------------------
     UTILISATEUR {
         int    id_user PK
-        string login              "CAS login"
+        string login                          "CAS login"
         string uid_cas
         string nom
         string prenom
+        string genre                          "M/F"
+        string categorie                      "EC/BIATSS/ESAS/CONTRACTUEL/VACATAIRE"
         string email_institutionnel
+        string email_institutionnel_secondaire "mail labo (LIPN, LAGA…)"
         string telephone
         string bureau
-        string statut             "ACTIF/INACTIF"
+        string statut                         "ACTIF/INACTIF"
     }
 
     ROLE {
-        string id_role PK
-        string libelle
-        string description
-        int    niveau_hierarchique
+        string  id_role PK
+        string  libelle
+        string  description
+        int     niveau_hierarchique
         boolean is_global
-        int    id_composante FK   "nullable (si rôle spécifique)"
+        boolean est_administratif  "true = réservé BIATSS"
+        boolean est_transverse     "true = resp. qualité, internat…"
+        int     id_composante FK   "nullable"
     }
 
     AFFECTATION {
@@ -84,27 +107,42 @@ erDiagram
         int    id_entite FK
         int    id_annee FK
         date   date_debut
-        date   date_fin           "nullable"
+        date   date_fin                   "nullable"
+        int    id_affectation_n_plus_1 FK "nullable — N+1 hiérarchique"
     }
 
-    %% Adresse fonctionnelle par rôle (optionnelle)
     CONTACT_ROLE {
         int    id_contact_role PK
         int    id_affectation FK
-        string email_fonctionnelle "nullable"
+        string email_fonctionnelle "lié à la fonction"
         string type_email
+        string telephone
+        string bureau
     }
 
     UTILISATEUR ||--o{ AFFECTATION : "Occupe"
-    ROLE ||--o{ AFFECTATION : "Attribué via"
+    ROLE        ||--o{ AFFECTATION : "Attribué via"
     ENTITE_STRUCTURE ||--o{ AFFECTATION : "Dans le périmètre"
     ANNEE_UNIVERSITAIRE ||--o{ AFFECTATION : "Pour l'année"
-
-    AFFECTATION ||--o| CONTACT_ROLE : "Peut avoir"
+    AFFECTATION ||--o| CONTACT_ROLE      : "Peut avoir"
+    AFFECTATION ||--o{ AFFECTATION       : "N+1 hiérarchique"
 
 
     %% ---------------------------------------------------------
-    %% BLOC 4 : DEMANDES DE RÔLES SPÉCIFIQUES (VALIDATION SC)
+    %% BLOC 4 : PERSONNALITÉS EXTÉRIEURES (sans CAS)
+    %% ---------------------------------------------------------
+    PERSONNE_EXTERNE {
+        int    id_externe PK
+        string nom
+        string prenom
+        string entreprise
+        string statut_externe "ANCIEN_ETUDIANT/PROFESSIONNEL"
+        string email
+    }
+
+
+    %% ---------------------------------------------------------
+    %% BLOC 5 : DEMANDES DE RÔLES (VALIDATION SC)
     %% ---------------------------------------------------------
     DEMANDE_ROLE {
         int    id_demande_role PK
@@ -123,15 +161,15 @@ erDiagram
 
 
     %% ---------------------------------------------------------
-    %% BLOC 5 : DÉLÉGATIONS (TRACÉES ET EXPLOITABLES)
+    %% BLOC 6 : DÉLÉGATIONS
     %% ---------------------------------------------------------
     DELEGATION {
         int    id_delegation PK
         int    delegant_id FK
         int    delegataire_id FK
         int    id_entite FK
-        string id_role FK         "nullable (si délégation liée à un rôle)"
-        string type_droit         "nullable (si délégation type)"
+        string id_role FK         "nullable"
+        string type_droit
         date   date_debut
         date   date_fin           "nullable"
         string statut             "ACTIVE/EXPIREE/ANNULEE"
@@ -144,7 +182,7 @@ erDiagram
 
 
     %% ---------------------------------------------------------
-    %% BLOC 6 : TRAÇABILITÉ / AUDIT
+    %% BLOC 7 : TRAÇABILITÉ / AUDIT
     %% ---------------------------------------------------------
     JOURNAL_AUDIT {
         int      id_log PK
@@ -153,15 +191,15 @@ erDiagram
         string   type_action
         string   cible_type
         string   cible_id
-        string   ancienne_valeur  "nullable"
-        string   nouvelle_valeur  "nullable"
+        string   ancienne_valeur "nullable"
+        string   nouvelle_valeur "nullable"
     }
 
     UTILISATEUR ||--o{ JOURNAL_AUDIT : "Génère"
 
 
     %% ---------------------------------------------------------
-    %% BLOC 7 : WORKFLOWS (DEMANDES DE MODIFICATION + SIGNALEMENTS) + NOTIFS
+    %% BLOC 8 : WORKFLOWS (MODIFICATIONS + SIGNALEMENTS + NOTIFS)
     %% ---------------------------------------------------------
     DEMANDE_MODIFICATION {
         int      id_demande PK
@@ -180,9 +218,10 @@ erDiagram
         int      id_signalement PK
         int      auteur_id FK
         int      traitant_id FK  "nullable"
+        int      cloture_par_id FK "nullable"
         int      id_entite_cible FK "nullable"
         string   description
-        string   statut          "OUVERT/CLOTURE"
+        string   statut          "OUVERT/EN_COURS/CLOTURE"
         datetime date_creation
         datetime date_traitement "nullable"
     }
@@ -200,12 +239,9 @@ erDiagram
 
     UTILISATEUR ||--o{ DEMANDE_MODIFICATION : "Émet"
     UTILISATEUR ||--o{ DEMANDE_MODIFICATION : "Valide"
-
     UTILISATEUR ||--o{ SIGNALEMENT : "Signale"
     UTILISATEUR ||--o{ SIGNALEMENT : "Traite"
-
     ENTITE_STRUCTURE ||--o{ SIGNALEMENT : "Est ciblée par"
-
     UTILISATEUR ||--o{ NOTIFICATION : "Reçoit"
     DEMANDE_MODIFICATION ||--o{ NOTIFICATION : "Génère"
     SIGNALEMENT ||--o{ NOTIFICATION : "Génère"
@@ -213,7 +249,7 @@ erDiagram
 
 
     %% ---------------------------------------------------------
-    %% BLOC 8 : ORGANIGRAMMES (GÉNÉRATION + FIGEMENT + EXPORT PDF)
+    %% BLOC 9 : ORGANIGRAMMES
     %% ---------------------------------------------------------
     ORGANIGRAMME {
         int      id_organigramme PK
@@ -230,4 +266,3 @@ erDiagram
     ANNEE_UNIVERSITAIRE ||--o{ ORGANIGRAMME : "Possède"
     ENTITE_STRUCTURE ||--o{ ORGANIGRAMME : "Racine"
     UTILISATEUR ||--o{ ORGANIGRAMME : "Génère"
-
