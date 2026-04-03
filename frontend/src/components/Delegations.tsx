@@ -2,14 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { UserRole, AcademicYear, EntiteStructure } from "../types";
 import {
   UserPlus,
-  Calendar,
   CheckCircle,
   XCircle,
   Clock,
   Eye,
   AlertCircle,
+  Calendar,
 } from "lucide-react";
 import { apiFetch } from "../lib/api";
+import { FilterBar } from "./ui/filter-bar";
+import { readQueryParam, writeQueryParams } from "../lib/url-state";
 
 interface DelegationsProps {
   userRole: UserRole;
@@ -80,11 +82,42 @@ export function Delegations({
     startDate: todayIso(),
     endDate: "",
   });
+  const isSC = userRole === "services-centraux" || userRole === "administrateur";
   const canCreate =
     userRole === "directeur-composante" ||
     userRole === "directeur-administratif" ||
     userRole === "directeur-administratif-adjoint";
-  const canExport = userRole === "services-centraux";
+  const canExport = isSC;
+
+  const [filterComposante, setFilterComposante] = useState<string>("");
+  const hasActiveFilters = Boolean(filterComposante || filterActive !== "all");
+  const [filtersHydrated, setFiltersHydrated] = useState(false);
+
+  // Composantes racines (pour filtre SC)
+  const composantes = useMemo(
+    () => entites.filter((e) => e.type_entite === "COMPOSANTE"),
+    [entites],
+  );
+
+  // Entités filtrées par composante sélectionnée (ou toutes si SC sans filtre)
+  const scopedEntites = useMemo(() => {
+    if (!filterComposante) return entites;
+    const result = new Set<number>();
+    const byParent = new Map<number, number[]>();
+    entites.forEach((e) => {
+      if (e.id_entite_parent) {
+        if (!byParent.has(e.id_entite_parent)) byParent.set(e.id_entite_parent, []);
+        byParent.get(e.id_entite_parent)!.push(e.id_entite);
+      }
+    });
+    const queue = [Number(filterComposante)];
+    while (queue.length) {
+      const id = queue.shift()!;
+      result.add(id);
+      (byParent.get(id) ?? []).forEach((c) => queue.push(c));
+    }
+    return entites.filter((e) => result.has(e.id_entite));
+  }, [entites, filterComposante]);
 
   const loadData = async () => {
     if (!authLogin) return;
@@ -93,7 +126,7 @@ export function Delegations({
     try {
       const [delegationsData, usersData] = await Promise.all([
         apiFetch<{ items: ApiDelegation[] }>("/delegations", { login: authLogin }),
-        apiFetch<{ items: ApiUser[] }>(`/users?yearId=${currentYear.id}`, { login: authLogin }),
+        apiFetch<{ items: ApiUser[] }>(`/users?yearId=${currentYear.id}&pageSize=500`, { login: authLogin }),
       ]);
       setDelegations(delegationsData.items || []);
       setUsers(
@@ -115,14 +148,41 @@ export function Delegations({
     loadData();
   }, [authLogin, currentYear.id]);
 
+  useEffect(() => {
+    const active = readQueryParam("dg_active");
+    const comp = readQueryParam("dg_comp");
+    if (active === "all" || active === "active" || active === "inactive") {
+      setFilterActive(active);
+    }
+    setFilterComposante(comp || "");
+    setFiltersHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!filtersHydrated) return;
+    writeQueryParams({
+      dg_active: filterActive,
+      dg_comp: filterComposante,
+    });
+  }, [filterActive, filterComposante, filtersHydrated]);
+
   const filteredDelegations = useMemo(() => {
+    const scopedIds = filterComposante
+      ? new Set(scopedEntites.map((e) => e.id_entite))
+      : null;
     return delegations.filter((delegation) => {
       const active = delegation.statut === "ACTIVE";
-      if (filterActive === "active") return active;
-      if (filterActive === "inactive") return !active;
+      if (filterActive === "active" && !active) return false;
+      if (filterActive === "inactive" && active) return false;
+      if (scopedIds && delegation.id_entite && !scopedIds.has(delegation.id_entite)) return false;
       return true;
     });
-  }, [delegations, filterActive]);
+  }, [delegations, filterActive, filterComposante, scopedEntites]);
+
+  const resetFilters = () => {
+    setFilterComposante("");
+    setFilterActive("all");
+  };
 
   const handleCreateDelegation = async () => {
     if (!authLogin) return;
@@ -207,7 +267,7 @@ export function Delegations({
               : "Consulter les délégations et exporter en CSV (Services centraux)."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {canExport && (
             <button
               onClick={handleExport}
@@ -237,9 +297,10 @@ export function Delegations({
       )}
 
       {showCreateForm && canCreate && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <h3 className="text-slate-900 mb-4">Nouvelle délégation</h3>
-          <div className="space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-3xl rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="text-slate-900 mb-4">Nouvelle délégation</h3>
+            <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -270,7 +331,7 @@ export function Delegations({
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                 >
                   <option value="">Sélectionner une structure</option>
-                  {entites.map((entite) => (
+                  {scopedEntites.map((entite) => (
                     <option key={entite.id_entite} value={entite.id_entite}>
                       {entite.nom} ({entite.type_entite})
                     </option>
@@ -288,7 +349,7 @@ export function Delegations({
                 onChange={(e) => setNewDelegation({ ...newDelegation, right: e.target.value })}
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
               >
-                <option value="">Selectionner un droit</option>
+                <option value="">Sélectionner un droit</option>
                 {rightsOptions.map((right) => (
                   <option key={right.value} value={right.value}>
                     {right.label}
@@ -337,31 +398,53 @@ export function Delegations({
                 Annuler
               </button>
             </div>
+            </div>
           </div>
         </div>
       )}
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-          <h3 className="text-slate-900">Delegations existantes</h3>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-slate-600">Filtrer:</label>
-            <select
-              value={filterActive}
-              onChange={(e) => setFilterActive(e.target.value as "all" | "active" | "inactive")}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-            >
-              <option value="all">Toutes</option>
-              <option value="active">Actives</option>
-              <option value="inactive">Inactives</option>
-            </select>
-          </div>
-        </div>
+        <h3 className="text-slate-900 mb-4">Délégations existantes</h3>
+
+        <FilterBar
+          className="mb-4"
+          fields={[
+            {
+              key: "status",
+              label: "Statut",
+              type: "select",
+              value: filterActive,
+              onChange: (value) => setFilterActive(value as "all" | "active" | "inactive"),
+              options: [
+                { value: "all", label: "Toutes" },
+                { value: "active", label: "Actives" },
+                { value: "inactive", label: "Inactives" },
+              ],
+            },
+            ...(isSC && composantes.length > 0
+              ? [
+                  {
+                    key: "composante",
+                    label: "Composante",
+                    type: "select" as const,
+                    value: filterComposante,
+                    onChange: (value: string) => setFilterComposante(value),
+                    options: [
+                      { value: "", label: "Toutes les composantes" },
+                      ...composantes.map((c) => ({ value: String(c.id_entite), label: c.nom })),
+                    ],
+                  },
+                ]
+              : []),
+          ]}
+          hasActiveFilters={hasActiveFilters}
+          onReset={resetFilters}
+        />
 
         {loading && delegations.length === 0 ? (
           <div className="text-slate-500">Chargement...</div>
         ) : filteredDelegations.length === 0 ? (
-          <div className="text-slate-500">Aucune delegation</div>
+          <div className="text-slate-500">Aucune délégation</div>
         ) : (
           <div className="space-y-4">
             {filteredDelegations.map((delegation) => (
@@ -369,6 +452,7 @@ export function Delegations({
                 key={delegation.id_delegation}
                 delegation={delegation}
                 onRevoke={handleRevoke}
+                canRevoke={isSC || String(delegation.delegant_id) === currentUserId}
               />
             ))}
           </div>
@@ -381,12 +465,15 @@ export function Delegations({
 function DelegationCard({
   delegation,
   onRevoke,
+  canRevoke,
 }: {
   delegation: ApiDelegation;
   onRevoke: (id: number) => void;
+  canRevoke: boolean;
 }) {
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
   const active = delegation.statut === "ACTIVE";
-  const statusLabel = active ? "Active" : delegation.statut === "ANNULEE" ? "Annulee" : "Expiree";
+  const statusLabel = active ? "Active" : delegation.statut === "ANNULEE" ? "Annulée" : "Expirée";
   const StatusIcon = active ? CheckCircle : delegation.statut === "ANNULEE" ? XCircle : Clock;
 
   return (
@@ -394,7 +481,7 @@ function DelegationCard({
       <div className="flex items-start justify-between">
         <div>
           <div className="text-slate-900 font-medium">
-            {delegation.delegant_nom || "Delegant"} {"->"} {delegation.delegataire_nom || "Delegataire"}
+            {delegation.delegant_nom || "Délégant"} {"->"} {delegation.delegataire_nom || "Délégataire"}
           </div>
           <div className="text-sm text-slate-600">
             {delegation.entite_nom || "Structure"} | Droit:{" "}
@@ -416,7 +503,7 @@ function DelegationCard({
       <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-500">
         <div className="flex items-center gap-1">
           <Calendar className="w-4 h-4" />
-          Debut: {delegation.date_debut}
+          Début : {delegation.date_debut}
         </div>
         <div className="flex items-center gap-1">
           <Calendar className="w-4 h-4" />
@@ -427,15 +514,33 @@ function DelegationCard({
           ID: {delegation.id_delegation}
         </div>
       </div>
-      {active && (
+      {active && canRevoke && (
         <div className="mt-4">
-          <button
-            onClick={() => onRevoke(delegation.id_delegation)}
-            className="px-3 py-2 text-sm bg-red-50 hover:bg-red-100 text-red-700 rounded-lg transition-colors flex items-center gap-2"
-          >
-            <AlertCircle className="w-4 h-4" />
-            Revoquer
-          </button>
+          {confirmRevoke ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-600">Confirmer la révocation ?</span>
+              <button
+                onClick={() => { onRevoke(delegation.id_delegation); setConfirmRevoke(false); }}
+                className="px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+              >
+                Confirmer
+              </button>
+              <button
+                onClick={() => setConfirmRevoke(false)}
+                className="px-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmRevoke(true)}
+              className="px-3 py-2 text-sm bg-red-50 hover:bg-red-100 text-red-700 rounded-lg transition-colors flex items-center gap-2"
+            >
+              <AlertCircle className="w-4 h-4" />
+              Révoquer
+            </button>
+          )}
         </div>
       )}
     </div>
