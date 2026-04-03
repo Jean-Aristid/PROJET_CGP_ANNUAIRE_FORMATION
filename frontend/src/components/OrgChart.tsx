@@ -35,6 +35,8 @@ type ApiOrgNode = {
   responsables?: ApiResponsable[];
 };
 
+type ExportFormat = "PDF" | "CSV" | "JSON" | "SVG" | "PNG";
+
 const levelLabel = (type: string) => {
   const normalized = type.toLowerCase();
   if (normalized === "composante") return "Composante";
@@ -157,7 +159,13 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
       );
       setTree(data.arbre);
       setOrgaMeta(data.organigramme);
-      await loadLatest();
+      setSelectedOrgaId(String(data.organigramme.id_organigramme));
+      // Rafraîchir la liste sans écraser l'orgaMeta courant
+      const orgaList = await apiFetch<{ items: ApiOrganigramme[] }>(
+        `/organigrammes?yearId=${currentYear.id}`,
+        { login: authLogin },
+      );
+      setOrganigrammes(orgaList.items || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors de la generation");
     } finally {
@@ -230,7 +238,61 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
     }
   };
 
-  const handleExport = async (format: "PDF" | "CSV" | "JSON") => {
+  const decodeBase64 = (contentBase64: string) => {
+    const binary = atob(contentBase64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  };
+
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const svgToPngBlob = async (svgText: string) => {
+    const svgBlob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(svgBlob);
+
+    try {
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("Impossible de convertir le SVG en PNG"));
+        img.src = url;
+      });
+
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width;
+      canvas.height = image.height;
+
+      const context = canvas.getContext("2d");
+      if (!context) {
+        throw new Error("Canvas indisponible pour l'export PNG");
+      }
+
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0);
+
+      return await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Impossible de générer le PNG"));
+        }, "image/png");
+      });
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const handleExport = async (format: ExportFormat) => {
     if (!authLogin || !orgaMeta) return;
     setExportLoading(true);
     setError(null);
@@ -239,22 +301,21 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
         fileName: string;
         mimeType: string;
         contentBase64: string;
-      }>(`/organigrammes/${orgaMeta.id_organigramme}/export?format=${format}`, {
+      }>(`/organigrammes/${orgaMeta.id_organigramme}/export?format=${format === "PNG" ? "SVG" : format}`, {
         login: authLogin,
       });
 
-      const binary = atob(data.contentBase64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i += 1) {
-        bytes[i] = binary.charCodeAt(i);
+      const bytes = decodeBase64(data.contentBase64);
+
+      if (format === "PNG") {
+        const svgText = new TextDecoder().decode(bytes);
+        const pngBlob = await svgToPngBlob(svgText);
+        const pngFileName = data.fileName.replace(/\.svg$/i, ".png");
+        downloadBlob(pngBlob, pngFileName);
+        return;
       }
-      const blob = new Blob([bytes], { type: data.mimeType });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = data.fileName;
-      link.click();
-      URL.revokeObjectURL(url);
+
+      downloadBlob(new Blob([bytes], { type: data.mimeType }), data.fileName);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur export");
     } finally {
@@ -451,7 +512,7 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
 
       {tree ? (
         <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-200 overflow-x-auto">
-          <div className="min-w-max">{renderNode(tree)}</div>
+          <div className="min-w-max pb-6"><OrgNode node={tree} level={0} /></div>
         </div>
       ) : (
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
@@ -485,8 +546,8 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
         <h3 className="text-slate-900 mb-4">Exports</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {(["PDF", "CSV", "JSON"] as const).map((format) => (
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {(["PDF", "PNG", "SVG", "CSV", "JSON"] as const).map((format) => (
             <button
               key={format}
               onClick={() => {
@@ -510,43 +571,92 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
   );
 }
 
-function renderNode(node: ApiOrgNode, level: number = 0): JSX.Element {
-  const colors: Record<number, string> = {
-    0: "bg-purple-100 border-purple-300 text-purple-900",
-    1: "bg-blue-100 border-blue-300 text-blue-900",
-    2: "bg-green-100 border-green-300 text-green-900",
-    3: "bg-orange-100 border-orange-300 text-orange-900",
+function OrgNode({ node, level = 0 }: { node: ApiOrgNode; level?: number }) {
+  const [expanded, setExpanded] = useState(true);
+  const [hovered, setHovered] = useState(false);
+
+  const colorVariants: Record<number, { box: string; badge: string; connector: string }> = {
+    0: { box: "bg-indigo-600 border-indigo-700 text-white",   badge: "bg-indigo-800/40 text-indigo-100", connector: "#6366f1" },
+    1: { box: "bg-blue-500 border-blue-600 text-white",       badge: "bg-blue-700/40 text-blue-100",    connector: "#3b82f6" },
+    2: { box: "bg-emerald-500 border-emerald-600 text-white", badge: "bg-emerald-700/40 text-emerald-100", connector: "#10b981" },
+    3: { box: "bg-amber-500 border-amber-600 text-white",     badge: "bg-amber-700/40 text-amber-100",  connector: "#f59e0b" },
   };
 
-  const colorClass = colors[Math.min(level, 3) as keyof typeof colors];
+  const { box, badge, connector } = colorVariants[Math.min(level, 3)];
+  const hasChildren = (node.children?.length ?? 0) > 0;
+  const hasResps = (node.responsables?.length ?? 0) > 0;
 
   return (
-    <div className="flex flex-col items-center mb-6">
-      <div className={`px-6 py-3 rounded-lg border-2 ${colorClass} shadow-sm min-w-[220px] text-center`}>
-        <div className="font-medium">{node.nom}</div>
-        <div className="text-xs opacity-75">{levelLabel(node.type_entite)}</div>
-        {node.responsables && node.responsables.length > 0 && (
-          <div className="mt-2 text-xs text-slate-700 space-y-0.5">
-            {node.responsables.map((resp) => (
-              <div key={`${resp.nom}-${resp.id_role}`}>
-                {resp.prenom} {resp.nom} <span className="opacity-80">({getRoleLabelSafe(resp.id_role)})</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      {node.children && node.children.length > 0 && (
-        <div className="flex justify-center mt-6">
-          <div className="relative">
-            <div className="flex gap-8">
-              {node.children.map((child) => (
-                <div key={child.id_entite} className="relative">
-                  <div className="absolute top-0 left-1/2 w-px h-6 bg-slate-300 -translate-x-1/2 -translate-y-6" />
-                  {renderNode(child, level + 1)}
+    <div className="flex flex-col items-center">
+      {/* Node box */}
+      <div className="relative">
+        <div
+          className={`relative px-4 py-2.5 rounded-xl border-2 shadow-md cursor-pointer select-none transition-all duration-150
+            ${box}
+            ${hovered ? "scale-105 shadow-lg z-10" : ""}
+            min-w-[160px] max-w-[220px] text-center`}
+          onClick={() => hasChildren && setExpanded((v) => !v)}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          title={hasChildren ? (expanded ? "Réduire" : "Développer") : undefined}
+        >
+          {/* Name */}
+          <div className="font-semibold text-sm leading-tight truncate">{node.nom}</div>
+          {/* Type badge */}
+          <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${badge}`}>
+            {levelLabel(node.type_entite)}
+          </span>
+          {/* Expand/collapse indicator */}
+          {hasChildren && (
+            <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-500 text-xs shadow-sm z-10">
+              {expanded ? "−" : "+"}
+            </div>
+          )}
+        </div>
+
+        {/* Tooltip on hover */}
+        {hovered && hasResps && (
+          <div
+            className="absolute z-50 top-full mt-4 left-1/2 -translate-x-1/2 bg-white border border-slate-200 rounded-xl shadow-xl p-3 min-w-[220px] pointer-events-none"
+            onMouseEnter={() => setHovered(true)}
+          >
+            <div className="text-xs font-semibold text-slate-700 mb-2">Responsables</div>
+            <div className="space-y-1.5">
+              {node.responsables!.map((resp) => (
+                <div key={`${resp.nom}-${resp.id_role}`} className="flex flex-col">
+                  <span className="text-sm font-medium text-slate-800">{resp.prenom} {resp.nom}</span>
+                  <span className="text-xs text-slate-500">{getRoleLabelSafe(resp.id_role)}</span>
+                  {resp.email_institutionnel && (
+                    <span className="text-xs text-indigo-500 truncate">{resp.email_institutionnel}</span>
+                  )}
                 </div>
               ))}
             </div>
-            <div className="absolute top-0 left-0 right-0 h-px bg-slate-300 -translate-y-6" />
+          </div>
+        )}
+      </div>
+
+      {/* Children */}
+      {hasChildren && expanded && (
+        <div className="flex justify-center mt-8">
+          <div className="relative">
+            {/* Horizontal bar */}
+            <div
+              className="absolute top-0 left-0 right-0 h-px -translate-y-4"
+              style={{ background: connector }}
+            />
+            <div className="flex gap-6">
+              {node.children!.map((child) => (
+                <div key={child.id_entite} className="relative flex flex-col items-center">
+                  {/* Vertical connector down to child */}
+                  <div
+                    className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-4 -translate-y-4"
+                    style={{ background: connector }}
+                  />
+                  <OrgNode node={child} level={level + 1} />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
