@@ -367,7 +367,21 @@ insert into utilisateur (id_user, login, nom, prenom, email_institutionnel, tele
   (1132, 'test.role-secretariat-pedagogique-as', 'ROLE SECRETARIAT PEDAGOGIQUE AS', 'Test', null, null, null, 'ACTIF'),
   (1133, 'test.role-secretariat-pedagogique-assc-gu', 'ROLE SECRETARIAT PEDAGOGIQUE ASSC GU', 'Test', null, null, null, 'ACTIF'),
   (1134, 'test.services-centraux', 'SERVICES CENTRAUX', 'Test', null, null, null, 'ACTIF'),
-  (1135, 'test.utilisateur-simple', 'UTILISATEUR SIMPLE', 'Test', null, null, null, 'ACTIF');
+  (1135, 'test.utilisateur-simple', 'UTILISATEUR SIMPLE', 'Test', null, null, null, 'ACTIF'),
+  (1136, 'sc.admin', 'Admin', 'Services', null, null, null, 'ACTIF'),
+  (1137, 'test.directeur-administratif', 'DIRECTEUR ADMINISTRATIF', 'Test', null, null, null, 'ACTIF'),
+  (1138, 'test.directeur-administratif-adjoint', 'DIRECTEUR ADMINISTRATIF ADJOINT', 'Test', null, null, null, 'ACTIF'),
+  (1139, 'test.vice-president-departement', 'VICE PRESIDENT DEPARTEMENT', 'Test', null, null, null, 'ACTIF'),
+  (1140, 'test.directeur-adjoint-licence', 'DIRECTEUR ADJOINT LICENCE', 'Test', null, null, null, 'ACTIF'),
+  (1141, 'test.responsable-service-pedagogique', 'RESPONSABLE SERVICE PEDAGOGIQUE', 'Test', null, null, null, 'ACTIF'),
+  (1142, 'test.responsable-adjoint-service-pedagogique', 'RESP ADJOINT SERVICE PEDAGOGIQUE', 'Test', null, null, null, 'ACTIF'),
+  (1143, 'test.directeur-etudes', 'DIRECTEUR ETUDES', 'Test', null, null, null, 'ACTIF'),
+  (1144, 'test.responsable-qualite', 'RESPONSABLE QUALITE', 'Test', null, null, null, 'ACTIF'),
+  (1145, 'test.responsable-international', 'RESPONSABLE INTERNATIONAL', 'Test', null, null, null, 'ACTIF'),
+  (1146, 'test.referent-commun', 'REFERENT COMMUN', 'Test', null, null, null, 'ACTIF'),
+  (1147, 'test.directeur-adjoint-ecole', 'DIRECTEUR ADJOINT ECOLE', 'Test', null, null, null, 'ACTIF'),
+  (1148, 'test.secretariat-pedagogique', 'SECRETARIAT PEDAGOGIQUE', 'Test', null, null, null, 'ACTIF'),
+  (1149, 'test.lecture-seule', 'LECTURE SEULE', 'Test', null, null, null, 'ACTIF');
 
 insert into affectation (id_affectation, id_user, id_role, id_entite, id_annee, date_debut, date_fin) values
   (2000, 1000, 'responsable-formation', 1004, 3, '2025-09-01', null),
@@ -512,7 +526,21 @@ insert into affectation (id_affectation, id_user, id_role, id_entite, id_annee, 
   (2139, 1132, 'role-secretariat-pedagogique-as', 1000, 3, '2025-09-01', null),
   (2140, 1133, 'role-secretariat-pedagogique-assc-gu', 1000, 3, '2025-09-01', null),
   (2141, 1134, 'services-centraux', 1000, 3, '2025-09-01', null),
-  (2142, 1135, 'utilisateur-simple', 1000, 3, '2025-09-01', null);
+  (2142, 1135, 'utilisateur-simple', 1000, 3, '2025-09-01', null),
+  (2143, 1136, 'services-centraux', 1000, 3, '2025-09-01', null),
+  (2144, 1137, 'directeur-administratif', 1000, 3, '2025-09-01', null),
+  (2145, 1138, 'directeur-administratif-adjoint', 1000, 3, '2025-09-01', null),
+  (2146, 1139, 'vice-president-departement', 1001, 3, '2025-09-01', null),
+  (2147, 1140, 'directeur-adjoint-licence', 1000, 3, '2025-09-01', null),
+  (2148, 1141, 'responsable-service-pedagogique', 1000, 3, '2025-09-01', null),
+  (2149, 1142, 'responsable-adjoint-service-pedagogique', 1000, 3, '2025-09-01', null),
+  (2150, 1143, 'directeur-etudes', 1004, 3, '2025-09-01', null),
+  (2151, 1144, 'responsable-qualite', 1000, 3, '2025-09-01', null),
+  (2152, 1145, 'responsable-international', 1000, 3, '2025-09-01', null),
+  (2153, 1146, 'referent-commun', 1000, 3, '2025-09-01', null),
+  (2154, 1147, 'directeur-adjoint-ecole', 1000, 3, '2025-09-01', null),
+  (2155, 1148, 'secretariat-pedagogique', 1002, 3, '2025-09-01', null),
+  (2156, 1149, 'lecture-seule', 1000, 3, '2025-09-01', null);
 
 insert into contact_role (id_contact_role, id_affectation, email_fonctionnelle, type_email) values
   (3000, 2035, 'secdir.ufrcom@univ-paris13.fr', 'fonction'),
@@ -573,6 +601,69 @@ insert into contact_role (id_contact_role, id_affectation, email_fonctionnelle, 
   (3055, 2099, 'guerrini@lipn.univ-paris13.fr', 'fonction'),
   (3056, 2100, 'nadi.tomeh@lipn.univ-paris13.fr', 'fonction'),
   (3057, 2101, 'flavien.breuvart@lipn.univ-paris13.fr', 'fonction');
+
+-- Alimente un N+1 de démo en choisissant d'abord un responsable de la même entité,
+-- sinon un responsable de l'entité parente la plus proche.
+with recursive entite_ancestors as (
+  select
+    e.id_entite as source_entite,
+    e.id_entite as ancestor_entite,
+    0 as depth
+  from entite_structure e
+  union all
+  select
+    ancestors.source_entite,
+    parent.id_entite as ancestor_entite,
+    ancestors.depth + 1
+  from entite_ancestors ancestors
+  join entite_structure current on current.id_entite = ancestors.ancestor_entite
+  join entite_structure parent on parent.id_entite = current.id_entite_parent
+),
+ranked_supervisors as (
+  select
+    child.id_affectation as child_id,
+    supervisor.id_affectation as supervisor_id,
+    row_number() over (
+      partition by child.id_affectation
+      order by
+        case when ancestors.depth = 0 then 0 else 1 end,
+        ancestors.depth asc,
+        case
+          when ancestors.depth = 0 then supervisor_role.niveau_hierarchique
+        end desc nulls last,
+        case
+          when ancestors.depth > 0 then supervisor_role.niveau_hierarchique
+        end asc nulls last,
+        supervisor.id_affectation asc
+    ) as rn
+  from affectation child
+  join role child_role on child_role.id_role = child.id_role
+  join entite_ancestors ancestors on ancestors.source_entite = child.id_entite
+  join affectation supervisor
+    on supervisor.id_annee = child.id_annee
+    and supervisor.id_entite = ancestors.ancestor_entite
+    and supervisor.id_affectation <> child.id_affectation
+  join role supervisor_role on supervisor_role.id_role = supervisor.id_role
+  where child.id_role not in ('services-centraux', 'administrateur', 'lecture-seule')
+    and supervisor.id_role not in ('services-centraux', 'administrateur', 'utilisateur-simple', 'lecture-seule')
+    and supervisor.id_role not like '%secretariat%'
+    and supervisor.id_role not like '%assistante%'
+    and supervisor.id_role not like '%assistant%'
+    and supervisor.id_role not like '%gestionnaire%'
+    and supervisor.id_role not like '%coordonnatrice%'
+    and supervisor.id_role not like '%coordinatrice%'
+    and supervisor.id_role not like '%coordonatrice%'
+    and supervisor.id_role not like '%contact%'
+    and (
+      (ancestors.depth = 0 and supervisor_role.niveau_hierarchique < child_role.niveau_hierarchique)
+      or ancestors.depth > 0
+    )
+)
+update affectation target
+set id_affectation_n_plus_1 = ranked.supervisor_id
+from ranked_supervisors ranked
+where ranked.rn = 1
+  and target.id_affectation = ranked.child_id;
 
 -- Recalage des sequences
 select setval(pg_get_serial_sequence('entite_structure','id_entite'), (select max(id_entite) from entite_structure));
