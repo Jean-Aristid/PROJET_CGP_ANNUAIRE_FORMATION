@@ -6,3 +6,4 @@
 backend-nest/dist
 **/*.log
 .DS_Store
+.dual-graph/
