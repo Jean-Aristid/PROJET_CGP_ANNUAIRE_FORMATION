@@ -48,8 +48,13 @@ function getLineageForEntite(
 ): HierarchyLineage {
   const lineage: HierarchyLineage = {};
   let current = entiteMap.get(entiteId);
+  const visited = new Set<number>();
 
   while (current) {
+    if (visited.has(current.id_entite)) {
+      break;
+    }
+    visited.add(current.id_entite);
     const type = current.type_entite as HierarchyEntiteType;
     if (!lineage[type]) {
       lineage[type] = current.id_entite;
@@ -192,7 +197,11 @@ export function getDescendantEntiteIds(
     if (currentId !== rootId || includeSelf) {
       ids.add(currentId);
     }
-    (byParent.get(currentId) ?? []).forEach((childId) => queue.push(childId));
+    (byParent.get(currentId) ?? []).forEach((childId) => {
+      if (!ids.has(childId)) {
+        queue.push(childId);
+      }
+    });
   }
 
   return ids;

@@ -53,6 +53,8 @@ type ApiUserRole = {
   entite: string;
   id_entite: number;
   id_annee: number;
+  date_debut?: string | null;
+  date_fin?: string | null;
 };
 
 type ApiUserRow = {
@@ -89,6 +91,19 @@ type EditFormData = {
   prenom: string;
   nom: string;
   email: string;
+  secondaryEmail: string;
+  genre: string;
+  category: string;
+  telephone: string;
+  bureau: string;
+};
+
+type AffectationEditForm = {
+  id_role: string;
+  id_entite: string;
+  date_debut: string;
+  date_fin: string;
+  email_fonctionnelle: string;
   telephone: string;
   bureau: string;
 };
@@ -138,12 +153,24 @@ const createEmptyUser = () => ({
   prenom: "",
   nom: "",
   email: "",
+  secondaryEmail: "",
+  genre: "",
+  category: "",
   telephone: "",
   bureau: "",
   id_role: "",
   id_entite: "",
   date_debut: todayIso(),
   date_fin: "",
+});
+const createEmptyAssignmentEditForm = (): AffectationEditForm => ({
+  id_role: "",
+  id_entite: "",
+  date_debut: todayIso(),
+  date_fin: "",
+  email_fonctionnelle: "",
+  telephone: "",
+  bureau: "",
 });
 
 const getRoleId = (role: ApiRole) => role.id_role || role.id || "";
@@ -172,6 +199,10 @@ export function ManageResponsibles({
   const [isAdding, setIsAdding] = useState(false);
   const [showAffectationFor, setShowAffectationFor] = useState<string | null>(null);
   const [affectationForm, setAffectationForm] = useState(createEmptyAffectationForm);
+  const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null);
+  const [editingAssignmentForm, setEditingAssignmentForm] = useState<AffectationEditForm>(
+    createEmptyAssignmentEditForm,
+  );
   const [newUser, setNewUser] = useState(createEmptyUser);
 
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
@@ -224,6 +255,19 @@ export function ManageResponsibles({
 
     return null;
   }, [confirmDeleteAffId, responsibles]);
+
+  const editAffectationTarget = useMemo(() => {
+    if (editingAssignmentId === null) return null;
+
+    for (const person of responsibles) {
+      const assignment = person.assignments.find((item) => item.id_affectation === editingAssignmentId);
+      if (assignment) {
+        return { person, assignment };
+      }
+    }
+
+    return null;
+  }, [editingAssignmentId, responsibles]);
 
   const filteredResponsibles = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -379,6 +423,9 @@ export function ManageResponsibles({
       prenom: person.firstName,
       nom: person.lastName,
       email: person.email,
+      secondaryEmail: person.secondaryEmail || "",
+      genre: person.genre || "",
+      category: person.category || "",
       telephone: person.phone || "",
       bureau: person.office || "",
     });
@@ -402,6 +449,71 @@ export function ManageResponsibles({
     setAffectationForm(createEmptyAffectationForm());
   };
 
+  const closeEditAssignmentDialog = () => {
+    setEditingAssignmentId(null);
+    setEditingAssignmentForm(createEmptyAssignmentEditForm());
+  };
+
+  const startEditAssignment = async (assignment: ApiUserRole) => {
+    if (!authLogin) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const [{ affectation }, contactResponse] = await Promise.all([
+        apiFetch<{
+          affectation: {
+            id_affectation: number;
+            id_role: string;
+            id_entite: number;
+            date_debut: string;
+            date_fin: string | null;
+          };
+        }>(`/affectations/${assignment.id_affectation}`, { login: authLogin }),
+        apiFetch<{
+          item?: {
+            responsables?: Array<{
+              id_affectation: number;
+              contact?: {
+                email_fonctionnelle: string | null;
+                telephone: string | null;
+                bureau: string | null;
+              } | null;
+            }>;
+            secretariat?: Array<{
+              id_affectation: number;
+              contact?: {
+                email_fonctionnelle: string | null;
+                telephone: string | null;
+                bureau: string | null;
+              } | null;
+            }>;
+          };
+        }>(`/entites/${assignment.id_entite}`, { login: authLogin }),
+      ]);
+
+      const allAssignments = [
+        ...(contactResponse.item?.responsables ?? []),
+        ...(contactResponse.item?.secretariat ?? []),
+      ];
+      const contact = allAssignments.find((item) => item.id_affectation === assignment.id_affectation)?.contact;
+
+      setEditingAssignmentId(assignment.id_affectation);
+      setEditingAssignmentForm({
+        id_role: affectation.id_role,
+        id_entite: String(affectation.id_entite),
+        date_debut: affectation.date_debut,
+        date_fin: affectation.date_fin || "",
+        email_fonctionnelle: contact?.email_fonctionnelle || "",
+        telephone: contact?.telephone || "",
+        bureau: contact?.bureau || "",
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors du chargement de l'affectation");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSaveEdit = async () => {
     if (!editingId || !formData || !authLogin) return;
     setLoading(true);
@@ -412,6 +524,9 @@ export function ManageResponsibles({
           prenom: formData.prenom,
           nom: formData.nom,
           email_institutionnel: formData.email || null,
+          email_institutionnel_secondaire: formData.secondaryEmail || null,
+          genre: formData.genre || null,
+          categorie: formData.category || null,
           telephone: formData.telephone || null,
           bureau: formData.bureau || null,
         }),
@@ -454,6 +569,9 @@ export function ManageResponsibles({
           nom: newUser.nom,
           prenom: newUser.prenom,
           email_institutionnel: newUser.email || null,
+          email_institutionnel_secondaire: newUser.secondaryEmail || null,
+          genre: newUser.genre || null,
+          categorie: newUser.category || null,
           telephone: newUser.telephone || null,
           bureau: newUser.bureau || null,
           affectations,
@@ -528,6 +646,46 @@ export function ManageResponsibles({
     }
   };
 
+  const handleSaveAssignment = async () => {
+    if (!authLogin || editingAssignmentId === null) return;
+    if (!editingAssignmentForm.id_role || !editingAssignmentForm.id_entite) {
+      setError("Veuillez selectionner un role et une structure");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      await apiFetch(`/affectations/${editingAssignmentId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          id_role: editingAssignmentForm.id_role,
+          id_entite: Number(editingAssignmentForm.id_entite),
+          date_debut: editingAssignmentForm.date_debut,
+          date_fin: editingAssignmentForm.date_fin || null,
+        }),
+        login: authLogin,
+      });
+
+      await apiFetch(`/affectations/${editingAssignmentId}/contact`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          email_fonctionnelle: editingAssignmentForm.email_fonctionnelle || null,
+          telephone: editingAssignmentForm.telephone || null,
+          bureau: editingAssignmentForm.bureau || null,
+        }),
+        login: authLogin,
+      });
+
+      closeEditAssignmentDialog();
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la mise a jour de l'affectation");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -571,6 +729,24 @@ export function ManageResponsibles({
             <Field label="Prénom" value={newUser.prenom} onChange={(value) => setNewUser({ ...newUser, prenom: value })} />
             <Field label="Nom" value={newUser.nom} onChange={(value) => setNewUser({ ...newUser, nom: value })} />
             <Field label="Email" value={newUser.email} onChange={(value) => setNewUser({ ...newUser, email: value })} />
+            <Field label="Email secondaire" value={newUser.secondaryEmail} onChange={(value) => setNewUser({ ...newUser, secondaryEmail: value })} />
+            <Select
+              label="Civilité"
+              value={newUser.genre}
+              onChange={(value) => setNewUser({ ...newUser, genre: value })}
+              options={[
+                { value: "M", label: "Monsieur" },
+                { value: "F", label: "Madame" },
+              ]}
+              placeholder="Sélectionner une civilité"
+            />
+            <Select
+              label="Catégorie"
+              value={newUser.category}
+              onChange={(value) => setNewUser({ ...newUser, category: value })}
+              options={Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }))}
+              placeholder="Sélectionner une catégorie"
+            />
             <Field label="Téléphone" value={newUser.telephone} onChange={(value) => setNewUser({ ...newUser, telephone: value })} />
             <Field label="Bureau" value={newUser.bureau} onChange={(value) => setNewUser({ ...newUser, bureau: value })} />
           </div>
@@ -696,6 +872,28 @@ export function ManageResponsibles({
                 : "Mettez à jour les informations."}
             </DialogDescription>
           </DialogHeader>
+          {editingPerson && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              <div className="mb-2 font-medium text-slate-900">Affectations actuelles</div>
+              <div className="flex flex-wrap gap-2">
+                {editingPerson.assignments.length === 0 ? (
+                  <span>Aucune affectation pour cette année.</span>
+                ) : (
+                  editingPerson.assignments.map((assignment) => (
+                    <span
+                      key={assignment.id_affectation}
+                      className="rounded-full border border-slate-200 bg-white px-3 py-1"
+                    >
+                      {(roleLabelMap.get(assignment.role) ||
+                        getRoleLabel(assignment.role as UserRole) ||
+                        assignment.role)}{" "}
+                      - {assignment.entite}
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
           {formData && <EditForm formData={formData} setFormData={setFormData} />}
           <DialogFooter className="mt-6">
             <button
@@ -779,6 +977,89 @@ export function ManageResponsibles({
                 Ajouter
               </button>
             </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(editingAssignmentId && editAffectationTarget)}
+        onOpenChange={(open: boolean) => {
+          if (!open) closeEditAssignmentDialog();
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Modifier l'affectation</DialogTitle>
+            <DialogDescription>
+              {editAffectationTarget
+                ? `${editAffectationTarget.person.name} (${editAffectationTarget.person.login})`
+                : "Mettez Ã  jour le rÃ´le, la structure et les coordonnÃ©es fonctionnelles."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Select
+              label="RÃ´le"
+              value={editingAssignmentForm.id_role}
+              onChange={(value) => setEditingAssignmentForm((prev) => ({ ...prev, id_role: value }))}
+              options={roles.map((role) => ({ value: getRoleId(role), label: role.libelle }))}
+              placeholder="SÃ©lectionner un rÃ´le"
+            />
+            <Select
+              label="Structure d'affectation"
+              value={editingAssignmentForm.id_entite}
+              onChange={(value) => setEditingAssignmentForm((prev) => ({ ...prev, id_entite: value }))}
+              options={entites.map((entite) => ({
+                value: String(entite.id_entite),
+                label: `${entite.nom} (${entite.type_entite})`,
+              }))}
+              placeholder="SÃ©lectionner une structure"
+            />
+            <Field
+              label="Date de dÃ©but"
+              type="date"
+              value={editingAssignmentForm.date_debut}
+              onChange={(value) => setEditingAssignmentForm((prev) => ({ ...prev, date_debut: value }))}
+            />
+            <Field
+              label="Date fin"
+              type="date"
+              value={editingAssignmentForm.date_fin}
+              onChange={(value) => setEditingAssignmentForm((prev) => ({ ...prev, date_fin: value }))}
+            />
+            <Field
+              label="Email fonctionnel"
+              value={editingAssignmentForm.email_fonctionnelle}
+              onChange={(value) =>
+                setEditingAssignmentForm((prev) => ({ ...prev, email_fonctionnelle: value }))
+              }
+            />
+            <Field
+              label="TÃ©lÃ©phone fonctionnel"
+              value={editingAssignmentForm.telephone}
+              onChange={(value) => setEditingAssignmentForm((prev) => ({ ...prev, telephone: value }))}
+            />
+            <Field
+              label="Bureau fonctionnel"
+              value={editingAssignmentForm.bureau}
+              onChange={(value) => setEditingAssignmentForm((prev) => ({ ...prev, bureau: value }))}
+            />
+          </div>
+          <DialogFooter className="mt-4">
+            <button
+              onClick={closeEditAssignmentDialog}
+              className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors flex items-center gap-2"
+            >
+              <X className="w-4 h-4" />
+              Annuler
+            </button>
+            <button
+              onClick={handleSaveAssignment}
+              disabled={loading}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-60"
+            >
+              <Save className="w-4 h-4" />
+              Enregistrer
+            </button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -869,13 +1150,22 @@ export function ManageResponsibles({
                               - {assignment.entite}
                             </span>
                             {canEdit && (
-                              <button
-                                onClick={() => setConfirmDeleteAffId(assignment.id_affectation)}
-                                className="ml-1 text-slate-400 hover:text-red-600 transition-colors"
-                                title="Supprimer cette affectation"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => startEditAssignment(assignment)}
+                                  className="ml-1 text-slate-400 hover:text-blue-600 transition-colors"
+                                  title="Modifier cette affectation"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDeleteAffId(assignment.id_affectation)}
+                                  className="text-slate-400 hover:text-red-600 transition-colors"
+                                  title="Supprimer cette affectation"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </>
                             )}
                           </div>
                         ))}
@@ -1057,6 +1347,28 @@ function EditForm({
         label="Email"
         value={formData.email}
         onChange={(value) => setFormData({ ...formData, email: value })}
+      />
+      <Field
+        label="Email secondaire"
+        value={formData.secondaryEmail}
+        onChange={(value) => setFormData({ ...formData, secondaryEmail: value })}
+      />
+      <Select
+        label="Civilité"
+        value={formData.genre}
+        onChange={(value) => setFormData({ ...formData, genre: value })}
+        options={[
+          { value: "M", label: "Monsieur" },
+          { value: "F", label: "Madame" },
+        ]}
+        placeholder="Sélectionner une civilité"
+      />
+      <Select
+        label="Catégorie"
+        value={formData.category}
+        onChange={(value) => setFormData({ ...formData, category: value })}
+        options={Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }))}
+        placeholder="Sélectionner une catégorie"
       />
       <Field
         label="Téléphone"

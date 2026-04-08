@@ -14,6 +14,18 @@ export class UpdateUserDto {
   email_institutionnel?: string | null;
 
   @IsOptional()
+  @IsEmail()
+  email_institutionnel_secondaire?: string | null;
+
+  @IsOptional()
+  @IsString()
+  genre?: string | null;
+
+  @IsOptional()
+  @IsString()
+  categorie?: string | null;
+
+  @IsOptional()
   @IsString()
   telephone?: string | null;
 

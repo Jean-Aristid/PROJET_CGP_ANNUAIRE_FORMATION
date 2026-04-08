@@ -218,9 +218,15 @@ export function ManageStructures({
           nom: res.item.nom,
           tel_service: res.item.tel_service ?? undefined,
           bureau_service: res.item.bureau_service ?? undefined,
+          code_composante: res.item.code_composante ?? undefined,
+          type_composante: res.item.type_composante ?? undefined,
+          mail_fonctionnel: res.item.mail_fonctionnel ?? undefined,
+          mail_institutionnel: res.item.mail_institutionnel ?? undefined,
+          campus: res.item.campus ?? undefined,
           site_web: res.item.site_web ?? undefined,
           code_interne: res.item.code_interne ?? undefined,
           type_diplome: res.item.type_diplome ?? undefined,
+          cycle: res.item.cycle ?? undefined,
           code_parcours: res.item.code_parcours ?? undefined,
           libelle_court: res.item.libelle_court ?? undefined,
         });
@@ -299,9 +305,22 @@ export function ManageStructures({
         tel_service: form.tel_service || null,
         bureau_service: form.bureau_service || null,
       };
-      if (detail.type_entite === "COMPOSANTE") payload.site_web = form.site_web ?? null;
+      if (detail.type_entite === "COMPOSANTE") {
+        payload.site_web = form.site_web ?? null;
+        payload.code_composante = form.code_composante ?? null;
+        payload.type_composante = form.type_composante ?? null;
+        payload.mail_fonctionnel = form.mail_fonctionnel ?? null;
+        payload.mail_institutionnel = form.mail_institutionnel ?? null;
+        payload.campus = form.campus ?? null;
+      }
       if (detail.type_entite === "DEPARTEMENT") payload.code_interne = form.code_interne ?? null;
-      if (detail.type_entite === "MENTION") payload.type_diplome = form.type_diplome ?? null;
+      if (detail.type_entite === "MENTION") {
+        payload.type_diplome = form.type_diplome ?? null;
+        payload.cycle =
+          form.cycle !== undefined && form.cycle !== null && String(form.cycle).trim() !== ""
+            ? String(form.cycle)
+            : null;
+      }
       if (detail.type_entite === "PARCOURS") payload.code_parcours = form.code_parcours ?? null;
       if (detail.type_entite === "NIVEAU") payload.libelle_court = form.libelle_court ?? null;
 
@@ -315,9 +334,15 @@ export function ManageStructures({
         nom: res.item.nom,
         tel_service: res.item.tel_service ?? undefined,
         bureau_service: res.item.bureau_service ?? undefined,
+        code_composante: res.item.code_composante ?? undefined,
+        type_composante: res.item.type_composante ?? undefined,
+        mail_fonctionnel: res.item.mail_fonctionnel ?? undefined,
+        mail_institutionnel: res.item.mail_institutionnel ?? undefined,
+        campus: res.item.campus ?? undefined,
         site_web: res.item.site_web ?? undefined,
         code_interne: res.item.code_interne ?? undefined,
         type_diplome: res.item.type_diplome ?? undefined,
+        cycle: res.item.cycle ?? undefined,
         code_parcours: res.item.code_parcours ?? undefined,
         libelle_court: res.item.libelle_court ?? undefined,
       });
@@ -335,9 +360,15 @@ export function ManageStructures({
         nom: detail.nom,
         tel_service: detail.tel_service ?? undefined,
         bureau_service: detail.bureau_service ?? undefined,
+        code_composante: detail.code_composante ?? undefined,
+        type_composante: detail.type_composante ?? undefined,
+        mail_fonctionnel: detail.mail_fonctionnel ?? undefined,
+        mail_institutionnel: detail.mail_institutionnel ?? undefined,
+        campus: detail.campus ?? undefined,
         site_web: detail.site_web ?? undefined,
         code_interne: detail.code_interne ?? undefined,
         type_diplome: detail.type_diplome ?? undefined,
+        cycle: detail.cycle ?? undefined,
         code_parcours: detail.code_parcours ?? undefined,
         libelle_court: detail.libelle_court ?? undefined,
       });
@@ -361,9 +392,15 @@ export function ManageStructures({
       nom: detail.nom,
       tel_service: detail.tel_service ?? undefined,
       bureau_service: detail.bureau_service ?? undefined,
+      code_composante: detail.code_composante ?? undefined,
+      type_composante: detail.type_composante ?? undefined,
+      mail_fonctionnel: detail.mail_fonctionnel ?? undefined,
+      mail_institutionnel: detail.mail_institutionnel ?? undefined,
+      campus: detail.campus ?? undefined,
       site_web: detail.site_web ?? undefined,
       code_interne: detail.code_interne ?? undefined,
       type_diplome: detail.type_diplome ?? undefined,
+      cycle: detail.cycle ?? undefined,
       code_parcours: detail.code_parcours ?? undefined,
       libelle_court: detail.libelle_court ?? undefined,
     });
@@ -684,11 +721,38 @@ export function ManageStructures({
                         onChange={(v) => setForm((f) => ({ ...f, bureau_service: v }))}
                       />
                       {detail.type_entite === "COMPOSANTE" && (
-                        <Field
-                          label="Site web"
-                          value={form.site_web}
-                          onChange={(v) => setForm((f) => ({ ...f, site_web: v }))}
-                        />
+                        <>
+                          <Field
+                            label="Code composante"
+                            value={form.code_composante}
+                            onChange={(v) => setForm((f) => ({ ...f, code_composante: v }))}
+                          />
+                          <Field
+                            label="Type de composante"
+                            value={form.type_composante}
+                            onChange={(v) => setForm((f) => ({ ...f, type_composante: v }))}
+                          />
+                          <Field
+                            label="Campus"
+                            value={form.campus}
+                            onChange={(v) => setForm((f) => ({ ...f, campus: v }))}
+                          />
+                          <Field
+                            label="Mail fonctionnel"
+                            value={form.mail_fonctionnel}
+                            onChange={(v) => setForm((f) => ({ ...f, mail_fonctionnel: v }))}
+                          />
+                          <Field
+                            label="Mail institutionnel"
+                            value={form.mail_institutionnel}
+                            onChange={(v) => setForm((f) => ({ ...f, mail_institutionnel: v }))}
+                          />
+                          <Field
+                            label="Site web"
+                            value={form.site_web}
+                            onChange={(v) => setForm((f) => ({ ...f, site_web: v }))}
+                          />
+                        </>
                       )}
                       {detail.type_entite === "DEPARTEMENT" && (
                         <Field
@@ -698,11 +762,18 @@ export function ManageStructures({
                         />
                       )}
                       {detail.type_entite === "MENTION" && (
-                        <Field
-                          label="Type de diplôme"
-                          value={form.type_diplome}
-                          onChange={(v) => setForm((f) => ({ ...f, type_diplome: v }))}
-                        />
+                        <>
+                          <Field
+                            label="Type de diplôme"
+                            value={form.type_diplome}
+                            onChange={(v) => setForm((f) => ({ ...f, type_diplome: v }))}
+                          />
+                          <Field
+                            label="Cycle"
+                            value={form.cycle?.toString()}
+                            onChange={(v) => setForm((f) => ({ ...f, cycle: v }))}
+                          />
+                        </>
                       )}
                       {detail.type_entite === "PARCOURS" && (
                         <Field

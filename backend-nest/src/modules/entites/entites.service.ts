@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import type { composante_type } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import type { UpdateEntiteDto } from './dto/update-entite.dto';
 import { isSupportRole } from '../../common/utils/role-support.utils';
@@ -72,6 +73,18 @@ export type EntiteDetail = EntiteDetailBase & {
 @Injectable()
 export class EntitesService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private normalizeComposanteType(value?: string | null): composante_type | null | undefined {
+    if (value === undefined) return undefined;
+    if (value === null || value === '') return null;
+
+    const normalized = value.toUpperCase();
+    if (normalized === 'UFR' || normalized === 'INSTITUT' || normalized === 'IUT') {
+      return normalized as composante_type;
+    }
+
+    return undefined;
+  }
 
   private mapItem(item: {
     id_entite: bigint;
@@ -287,10 +300,27 @@ export class EntitesService {
           },
         });
       }
-      if (dto.site_web !== undefined && existing.composante) {
+      if (
+        existing.composante &&
+        (
+          dto.site_web !== undefined ||
+          dto.code_composante !== undefined ||
+          dto.type_composante !== undefined ||
+          dto.mail_fonctionnel !== undefined ||
+          dto.mail_institutionnel !== undefined ||
+          dto.campus !== undefined
+        )
+      ) {
         await tx.composante.update({
           where: { id_entite: BigInt(id) },
-          data: { site_web: dto.site_web },
+          data: {
+            ...(dto.site_web !== undefined ? { site_web: dto.site_web } : {}),
+            ...(dto.code_composante !== undefined ? { code_composante: dto.code_composante } : {}),
+            ...(dto.type_composante !== undefined ? { type_composante: dto.type_composante as composante_type | null } : {}),
+            ...(dto.mail_fonctionnel !== undefined ? { mail_fonctionnel: dto.mail_fonctionnel } : {}),
+            ...(dto.mail_institutionnel !== undefined ? { mail_institutionnel: dto.mail_institutionnel } : {}),
+            ...(dto.campus !== undefined ? { campus: dto.campus } : {}),
+          },
         });
       }
       if (dto.code_interne !== undefined && existing.departement) {
@@ -299,10 +329,13 @@ export class EntitesService {
           data: { code_interne: dto.code_interne },
         });
       }
-      if (dto.type_diplome !== undefined && existing.mention) {
+      if ((dto.type_diplome !== undefined || dto.cycle !== undefined) && existing.mention) {
         await tx.mention.update({
           where: { id_entite: BigInt(id) },
-          data: { type_diplome: dto.type_diplome },
+          data: {
+            ...(dto.type_diplome !== undefined ? { type_diplome: dto.type_diplome } : {}),
+            ...(dto.cycle !== undefined ? { cycle: dto.cycle } : {}),
+          },
         });
       }
       if (dto.code_parcours !== undefined && existing.parcours) {

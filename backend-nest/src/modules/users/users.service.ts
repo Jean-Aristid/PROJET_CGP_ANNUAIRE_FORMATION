@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import type { Prisma, utilisateur_categorie, utilisateur_genre } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { normalizePagination, type PageResult } from '../../common/utils/pagination';
 import type { UsersListQueryDto } from './dto/users-list-query.dto';
@@ -21,6 +21,8 @@ export interface UserRoleRow {
   id_entite: number;
   id_annee: number;
   niveau_hierarchique: number;
+  date_debut: string | null;
+  date_fin: string | null;
 }
 
 export interface UserListItem {
@@ -40,6 +42,28 @@ export interface UserListItem {
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private normalizeGenre(value?: string | null): utilisateur_genre | null | undefined {
+    if (value === undefined) return undefined;
+    if (value === null || value === '') return null;
+    if (value === 'M' || value === 'F') return value;
+    return undefined;
+  }
+
+  private normalizeCategorie(value?: string | null): utilisateur_categorie | null | undefined {
+    if (value === undefined) return undefined;
+    if (value === null || value === '') return null;
+    if (
+      value === 'EC' ||
+      value === 'BIATSS' ||
+      value === 'ESAS' ||
+      value === 'CONTRACTUEL' ||
+      value === 'VACATAIRE'
+    ) {
+      return value;
+    }
+    return undefined;
+  }
 
   private parseNumericId(value?: string): bigint | null {
     const normalized = value?.trim();
@@ -156,6 +180,8 @@ export class UsersService {
   }
 
   async create(payload: CreateUserDto): Promise<UserListItem> {
+    const genre = this.normalizeGenre(payload.genre);
+    const categorie = this.normalizeCategorie(payload.categorie);
     const created = await this.prisma.$transaction(async (tx) => {
       const user = await tx.utilisateur.create({
         data: {
@@ -163,6 +189,9 @@ export class UsersService {
           nom: payload.nom,
           prenom: payload.prenom,
           email_institutionnel: payload.email_institutionnel ?? null,
+          email_institutionnel_secondaire: payload.email_institutionnel_secondaire ?? null,
+          ...(genre !== undefined ? { genre } : {}),
+          ...(categorie !== undefined ? { categorie } : {}),
           telephone: payload.telephone ?? null,
           bureau: payload.bureau ?? null,
         },
@@ -199,12 +228,20 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
+    const genre = this.normalizeGenre(payload.genre);
+    const categorie = this.normalizeCategorie(payload.categorie);
+
     await this.prisma.utilisateur.update({
       where: { id_user: parsedId },
       data: {
         ...(payload.nom !== undefined ? { nom: payload.nom } : {}),
         ...(payload.prenom !== undefined ? { prenom: payload.prenom } : {}),
         ...(payload.email_institutionnel !== undefined ? { email_institutionnel: payload.email_institutionnel } : {}),
+        ...(payload.email_institutionnel_secondaire !== undefined
+          ? { email_institutionnel_secondaire: payload.email_institutionnel_secondaire }
+          : {}),
+        ...(genre !== undefined ? { genre } : {}),
+        ...(categorie !== undefined ? { categorie } : {}),
         ...(payload.telephone !== undefined ? { telephone: payload.telephone } : {}),
         ...(payload.bureau !== undefined ? { bureau: payload.bureau } : {}),
       },
@@ -254,6 +291,8 @@ export class UsersService {
       id_role: string;
       id_entite: bigint;
       id_annee: bigint;
+      date_debut: Date;
+      date_fin: Date | null;
       role: { niveau_hierarchique: number } | null;
       entite_structure: { nom: string } | null;
     }>;
@@ -276,6 +315,8 @@ export class UsersService {
         id_entite: Number(affectation.id_entite),
         id_annee: Number(affectation.id_annee),
         niveau_hierarchique: affectation.role?.niveau_hierarchique ?? 0,
+        date_debut: affectation.date_debut ? affectation.date_debut.toISOString().slice(0, 10) : null,
+        date_fin: affectation.date_fin ? affectation.date_fin.toISOString().slice(0, 10) : null,
       })),
     };
   }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { UserRole, AcademicYear, EntiteStructure } from "../types";
+import { UserRole, AcademicYear, EntiteStructure, UserRoleAssignment } from "../types";
 import {
   UserPlus,
   CheckCircle,
@@ -11,11 +11,12 @@ import {
 } from "lucide-react";
 import { apiFetch } from "../lib/api";
 import { FilterBar } from "./ui/filter-bar";
-import { readQueryParam, writeQueryParams } from "../lib/url-state";
+import { writeQueryParams } from "../lib/url-state";
 import {
   EMPTY_HIERARCHY_FILTERS,
   HIERARCHY_LEVELS,
   type HierarchyFilters,
+  getDescendantEntiteIds,
   getFilteredEntites,
   getHierarchyOptions,
   matchesEntiteHierarchy,
@@ -28,6 +29,7 @@ interface DelegationsProps {
   authLogin: string | null;
   currentUserId: string;
   entites: EntiteStructure[];
+  currentAssignments: UserRoleAssignment[];
 }
 
 type ApiDelegation = {
@@ -56,11 +58,10 @@ const rightsOptions = [
   { value: "view", label: "Lecture" },
   { value: "manage_responsables", label: "Gestion responsables" },
   { value: "assign_role", label: "Affectation rôles" },
-  { value: "delegate", label: "Déléguer" },
-  { value: "generate_org", label: "Générer organigramme" },
-  { value: "export_data", label: "Export" },
+  { value: "validate_signalement", label: "Validation des signalements" },
+  { value: "generate_orgchart", label: "Générer organigramme" },
   { value: "import_data", label: "Import" },
-  { value: "audit_view", label: "Audit" },
+  { value: "full", label: "Accès complet" },
 ];
 
 const rightsLabelMap = rightsOptions.reduce<Record<string, string>>((acc, right) => {
@@ -84,6 +85,7 @@ export function Delegations({
   authLogin,
   currentUserId,
   entites,
+  currentAssignments,
 }: DelegationsProps) {
   const [delegations, setDelegations] = useState<ApiDelegation[]>([]);
   const [users, setUsers] = useState<ApiUser[]>([]);
@@ -100,6 +102,9 @@ export function Delegations({
     startDate: todayIso(),
     endDate: "",
   });
+  const [createHierarchyFilters, setCreateHierarchyFilters] = useState<HierarchyFilters>(
+    EMPTY_HIERARCHY_FILTERS,
+  );
   const isSC = userRole === "services-centraux" || userRole === "administrateur";
   const canCreate =
     userRole === "directeur-composante" ||
@@ -111,20 +116,73 @@ export function Delegations({
   const hasActiveFilters = Boolean(
     search || filterActive !== "all" || Object.values(hierarchyFilters).some(Boolean),
   );
-  const [filtersHydrated, setFiltersHydrated] = useState(false);
 
   const yearEntites = useMemo(
     () => entites.filter((entite) => String(entite.id_annee) === currentYear.id),
     [entites, currentYear.id],
   );
+  const allowedRootEntiteIds = useMemo(
+    () =>
+      isSC
+        ? yearEntites.map((entite) => entite.id_entite)
+        : currentAssignments
+            .filter((assignment) =>
+              assignment.yearId !== undefined
+                ? String(assignment.yearId) === currentYear.id
+                : assignment.year === currentYear.year,
+            )
+            .map((assignment) => assignment.entiteId),
+    [currentAssignments, currentYear.id, currentYear.year, isSC, yearEntites],
+  );
+  const allowedEntiteIds = useMemo(() => {
+    if (isSC) {
+      return new Set(yearEntites.map((entite) => entite.id_entite));
+    }
+
+    const ids = new Set<number>();
+    allowedRootEntiteIds.forEach((rootId) => {
+      getDescendantEntiteIds(yearEntites, rootId, { yearId: currentYear.id }).forEach((entiteId) =>
+        ids.add(entiteId),
+      );
+    });
+    return ids;
+  }, [allowedRootEntiteIds, currentYear.id, isSC, yearEntites]);
+  const scopeEntites = useMemo(
+    () => yearEntites.filter((entite) => allowedEntiteIds.has(entite.id_entite)),
+    [allowedEntiteIds, yearEntites],
+  );
+  const createAllowedEntites = useMemo(
+    () => yearEntites.filter((entite) => allowedRootEntiteIds.includes(entite.id_entite)),
+    [allowedRootEntiteIds, yearEntites],
+  );
   const hierarchyOptions = useMemo(
-    () => getHierarchyOptions(yearEntites, hierarchyFilters, currentYear.id),
-    [yearEntites, hierarchyFilters, currentYear.id],
+    () => getHierarchyOptions(scopeEntites, hierarchyFilters, currentYear.id),
+    [scopeEntites, hierarchyFilters, currentYear.id],
   );
   const scopedEntites = useMemo(
-    () => getFilteredEntites(yearEntites, hierarchyFilters, currentYear.id),
-    [yearEntites, hierarchyFilters, currentYear.id],
+    () => getFilteredEntites(scopeEntites, hierarchyFilters, currentYear.id),
+    [scopeEntites, hierarchyFilters, currentYear.id],
   );
+  const createHierarchyOptions = useMemo(
+    () => getHierarchyOptions(createAllowedEntites, createHierarchyFilters, currentYear.id),
+    [createAllowedEntites, createHierarchyFilters, currentYear.id],
+  );
+  const hasActiveCreateHierarchyFilters = useMemo(
+    () => Object.values(createHierarchyFilters).some(Boolean),
+    [createHierarchyFilters],
+  );
+  const createScopedEntites = useMemo(() => {
+    if (!hasActiveCreateHierarchyFilters) {
+      return createAllowedEntites;
+    }
+
+    return getFilteredEntites(createAllowedEntites, createHierarchyFilters, currentYear.id);
+  }, [
+    createAllowedEntites,
+    createHierarchyFilters,
+    currentYear.id,
+    hasActiveCreateHierarchyFilters,
+  ]);
 
   const loadData = async () => {
     if (!authLogin) return;
@@ -156,48 +214,40 @@ export function Delegations({
   }, [authLogin, currentYear.id]);
 
   useEffect(() => {
-    const active = readQueryParam("dg_active");
-    const q = readQueryParam("dg_q");
-    const comp = readQueryParam("dg_comp");
-    const dept = readQueryParam("dg_dept");
-    const mention = readQueryParam("dg_mention");
-    const parcours = readQueryParam("dg_parcours");
-    const niveau = readQueryParam("dg_niveau");
-    if (active === "all" || active === "active" || active === "inactive") {
-      setFilterActive(active);
-    }
-    setSearch(q || "");
-    setHierarchyFilters({
-      composanteId: comp || "",
-      departementId: dept || "",
-      mentionId: mention || "",
-      parcoursId: parcours || "",
-      niveauId: niveau || "",
-    });
-    setFiltersHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!filtersHydrated) return;
     writeQueryParams({
-      dg_q: search,
-      dg_active: filterActive,
-      dg_comp: hierarchyFilters.composanteId,
-      dg_dept: hierarchyFilters.departementId,
-      dg_mention: hierarchyFilters.mentionId,
-      dg_parcours: hierarchyFilters.parcoursId,
-      dg_niveau: hierarchyFilters.niveauId,
+      dg_q: "",
+      dg_active: "",
+      dg_comp: "",
+      dg_dept: "",
+      dg_mention: "",
+      dg_parcours: "",
+      dg_niveau: "",
+      ds_tab: "",
+      ds_q: "",
+      ds_role: "",
+      ds_comp: "",
+      ds_dept: "",
+      ds_mention: "",
+      ds_parcours: "",
+      ds_niveau: "",
+      ds_type: "",
+      ds_diplome: "",
+      ds_page: "",
     });
-  }, [search, filterActive, hierarchyFilters, filtersHydrated]);
+  }, []);
 
   const filteredDelegations = useMemo(() => {
     return delegations.filter((delegation) => {
+      if (!allowedEntiteIds.has(delegation.id_entite)) {
+        return false;
+      }
+
       const active = delegation.statut === "ACTIVE";
       if (filterActive === "active" && !active) return false;
       if (filterActive === "inactive" && active) return false;
       if (
         Object.values(hierarchyFilters).some(Boolean) &&
-        !matchesEntiteHierarchy(yearEntites, delegation.id_entite, hierarchyFilters, currentYear.id)
+        !matchesEntiteHierarchy(scopeEntites, delegation.id_entite, hierarchyFilters, currentYear.id)
       ) {
         return false;
       }
@@ -222,12 +272,25 @@ export function Delegations({
         delegatedRight.toLowerCase().includes(normalizedSearch)
       );
     });
-  }, [delegations, filterActive, hierarchyFilters, yearEntites, currentYear.id, search]);
+  }, [allowedEntiteIds, delegations, filterActive, hierarchyFilters, scopeEntites, currentYear.id, search]);
+
+  useEffect(() => {
+    if (!newDelegation.scopeEntite) return;
+    if (!createScopedEntites.some((entite) => String(entite.id_entite) === newDelegation.scopeEntite)) {
+      setNewDelegation((prev) => ({ ...prev, scopeEntite: "" }));
+    }
+  }, [createScopedEntites, newDelegation.scopeEntite]);
 
   const resetFilters = () => {
     setSearch("");
     setHierarchyFilters(EMPTY_HIERARCHY_FILTERS);
     setFilterActive("all");
+  };
+
+  const closeCreateForm = () => {
+    setShowCreateForm(false);
+    setCreateHierarchyFilters(EMPTY_HIERARCHY_FILTERS);
+    setNewDelegation((prev) => ({ ...prev, scopeEntite: "" }));
   };
 
   const handleCreateDelegation = async () => {
@@ -260,6 +323,7 @@ export function Delegations({
         startDate: todayIso(),
         endDate: "",
       });
+      setCreateHierarchyFilters(EMPTY_HIERARCHY_FILTERS);
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors de la création");
@@ -326,7 +390,7 @@ export function Delegations({
           )}
           {canCreate && (
             <button
-              onClick={() => setShowCreateForm(!showCreateForm)}
+              onClick={() => (showCreateForm ? closeCreateForm() : setShowCreateForm(true))}
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
             >
               <UserPlus className="w-5 h-5" />
@@ -347,13 +411,66 @@ export function Delegations({
           <button
             type="button"
             aria-label="Fermer la fenêtre de création de délégation"
-            onClick={() => setShowCreateForm(false)}
+            onClick={closeCreateForm}
             className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm"
           />
           <div className="relative flex min-h-full items-center justify-center p-4">
             <div className="w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
               <h3 className="text-slate-900 mb-4">Nouvelle délégation</h3>
               <div className="space-y-4">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="mb-3">
+                <div className="text-sm font-medium text-slate-900">Filtrer le périmètre</div>
+                <p className="text-xs text-slate-500">
+                  Seules les structures de votre périmètre sont proposées.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {HIERARCHY_LEVELS.map((level) => {
+                  const options = createHierarchyOptions[level.key];
+                  return (
+                    <div key={`create-${level.key}`}>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">{level.label}</label>
+                      <select
+                        value={createHierarchyFilters[level.key]}
+                        onChange={(e) =>
+                          setCreateHierarchyFilters((prev) =>
+                            updateHierarchyFilters(prev, level.key, e.target.value),
+                          )
+                        }
+                        disabled={options.length === 0}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                      >
+                        <option value="">{HIERARCHY_EMPTY_LABELS[level.key]}</option>
+                        {options.map((entite) => (
+                          <option key={entite.id_entite} value={entite.id_entite}>
+                            {entite.type_entite === "COMPOSANTE" && entite.code_composante
+                              ? `${entite.nom} (${entite.code_composante})`
+                              : entite.nom}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-4 text-xs text-slate-500">
+                <span>
+                  {hasActiveCreateHierarchyFilters
+                    ? `${createScopedEntites.length} structure${createScopedEntites.length > 1 ? "s" : ""} disponible${createScopedEntites.length > 1 ? "s" : ""}`
+                    : `${createAllowedEntites.length} structure${createAllowedEntites.length > 1 ? "s d'affectation directe" : " d'affectation directe"} affichée${createAllowedEntites.length > 1 ? "s" : ""}`}
+                </span>
+                {hasActiveCreateHierarchyFilters && (
+                  <button
+                    type="button"
+                    onClick={() => setCreateHierarchyFilters(EMPTY_HIERARCHY_FILTERS)}
+                    className="text-indigo-600 hover:underline"
+                  >
+                    Effacer les filtres
+                  </button>
+                )}
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -384,12 +501,17 @@ export function Delegations({
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                 >
                   <option value="">Sélectionner une structure</option>
-                  {scopedEntites.map((entite) => (
+                  {createScopedEntites.map((entite) => (
                     <option key={entite.id_entite} value={entite.id_entite}>
                       {entite.nom} ({entite.type_entite})
                     </option>
                   ))}
                 </select>
+                {!hasActiveCreateHierarchyFilters && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    La liste est limitée aux structures où vous avez une affectation directe. Les autres niveaux ne sont plus proposés s'ils ne sont pas autorisés.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -444,7 +566,7 @@ export function Delegations({
                 Enregistrer
               </button>
               <button
-                onClick={() => setShowCreateForm(false)}
+                onClick={closeCreateForm}
                 className="flex items-center gap-2 px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
               >
                 <XCircle className="w-4 h-4" />

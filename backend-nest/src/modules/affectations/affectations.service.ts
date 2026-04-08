@@ -60,7 +60,7 @@ export class AffectationsService {
       const debut = new Date(payload.date_debut);
       const fin = new Date(payload.date_fin);
       if (fin < debut) {
-        throw new BadRequestException('date_fin doit être postérieure ou égale à date_debut');
+        throw new BadRequestException('date_fin doit etre posterieure ou egale a date_debut');
       }
     }
 
@@ -116,11 +116,12 @@ export class AffectationsService {
       throw new NotFoundException('Affectation introuvable');
     }
 
+    const startDate = payload.date_debut ? new Date(payload.date_debut) : existing.date_debut;
+
     if (payload.date_fin !== undefined && payload.date_fin !== null) {
-      const debut = existing.date_debut;
       const fin = new Date(payload.date_fin);
-      if (fin < debut) {
-        throw new BadRequestException('date_fin doit être postérieure ou égale à date_debut');
+      if (fin < startDate) {
+        throw new BadRequestException('date_fin doit etre posterieure ou egale a date_debut');
       }
     }
 
@@ -128,6 +129,8 @@ export class AffectationsService {
       where: { id_affectation: parsedId },
       data: {
         ...(payload.id_role !== undefined ? { id_role: payload.id_role } : {}),
+        ...(payload.id_entite !== undefined ? { id_entite: BigInt(payload.id_entite) } : {}),
+        ...(payload.date_debut !== undefined ? { date_debut: new Date(payload.date_debut) } : {}),
         ...(payload.date_fin !== undefined
           ? { date_fin: payload.date_fin ? new Date(payload.date_fin) : null }
           : {}),

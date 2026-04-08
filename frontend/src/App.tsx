@@ -354,6 +354,7 @@ const buildUser = (
       entiteId: aff.id_entite,
       year: yearMap.get(aff.id_annee) || String(aff.id_annee),
       hierarchyLevel: aff.niveau_hierarchique ?? 0,
+      yearId: aff.id_annee,
     };
   });
 
@@ -822,6 +823,7 @@ export default function App() {
                 authLogin={authLogin}
                 currentUserId={currentUser.id}
                 entites={entites}
+                currentAssignments={currentUser.roles}
               />
             )}
             {currentView === "year-management" && (

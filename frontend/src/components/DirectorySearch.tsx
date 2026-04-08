@@ -3,7 +3,7 @@ import { Building2, ChevronLeft, ChevronRight, GraduationCap, Mail, Phone, Users
 import { AcademicYear, EntiteStructure } from "../types";
 import { apiFetch } from "../lib/api";
 import { FilterBar } from "./ui/filter-bar";
-import { readQueryParam, writeQueryParams } from "../lib/url-state";
+import { writeQueryParams } from "../lib/url-state";
 import {
   EMPTY_HIERARCHY_FILTERS,
   HIERARCHY_LEVELS,
@@ -98,11 +98,15 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
   const [secretariats, setSecretariats] = useState<ApiStructure[]>([]);
   const [total, setTotal] = useState(0);
   const [allRoles, setAllRoles] = useState<ApiRole[]>([]);
-  const [filtersHydrated, setFiltersHydrated] = useState(false);
+
+  const yearEntites = useMemo(
+    () => entites.filter((entite) => String(entite.id_annee) === currentYear.id),
+    [entites, currentYear.id],
+  );
 
   const hierarchyOptions = useMemo(
-    () => getHierarchyOptions(entites, hierarchyFilters, currentYear.id),
-    [entites, hierarchyFilters, currentYear.id],
+    () => getHierarchyOptions(yearEntites, hierarchyFilters, currentYear.id),
+    [yearEntites, hierarchyFilters, currentYear.id],
   );
 
   const entiteIds = useMemo((): string | undefined => {
@@ -112,39 +116,24 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
     }
 
     return Array.from(
-      getDescendantEntiteIds(entites, selectedEntiteId, { yearId: currentYear.id }),
+      getDescendantEntiteIds(yearEntites, selectedEntiteId, { yearId: currentYear.id }),
     ).join(",");
-  }, [currentYear.id, entites, hierarchyFilters]);
+  }, [currentYear.id, yearEntites, hierarchyFilters]);
 
   useEffect(() => {
-    const tab = readQueryParam("ds_tab");
-    const q = readQueryParam("ds_q");
-    const role = readQueryParam("ds_role");
-    const comp = readQueryParam("ds_comp");
-    const dept = readQueryParam("ds_dept");
-    const mention = readQueryParam("ds_mention");
-    const parcours = readQueryParam("ds_parcours");
-    const niveau = readQueryParam("ds_niveau");
-    const type = readQueryParam("ds_type");
-    const diplome = readQueryParam("ds_diplome");
-    const p = readQueryParam("ds_page");
-
-    if (tab === "responsables" || tab === "formations" || tab === "structures" || tab === "secretariats") {
-      setActiveTab(tab);
-    }
-    setQuery(q || "");
-    setRoleFilter(role || "");
-    setHierarchyFilters({
-      composanteId: comp || "",
-      departementId: dept || "",
-      mentionId: mention || "",
-      parcoursId: parcours || "",
-      niveauId: niveau || "",
+    writeQueryParams({
+      ds_tab: "",
+      ds_q: "",
+      ds_role: "",
+      ds_comp: "",
+      ds_dept: "",
+      ds_mention: "",
+      ds_parcours: "",
+      ds_niveau: "",
+      ds_type: "",
+      ds_diplome: "",
+      ds_page: "",
     });
-    setTypeEntiteFilter(type || "");
-    setTypeDiplomeFilter(diplome || "");
-    setPage(p ? Number(p) : 1);
-    setFiltersHydrated(true);
   }, []);
 
   useEffect(() => {
@@ -240,23 +229,6 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
     setTypeEntiteFilter("");
     setTypeDiplomeFilter("");
   };
-
-  useEffect(() => {
-    if (!filtersHydrated) return;
-    writeQueryParams({
-      ds_tab: activeTab,
-      ds_q: query,
-      ds_role: roleFilter,
-      ds_comp: hierarchyFilters.composanteId,
-      ds_dept: hierarchyFilters.departementId,
-      ds_mention: hierarchyFilters.mentionId,
-      ds_parcours: hierarchyFilters.parcoursId,
-      ds_niveau: hierarchyFilters.niveauId,
-      ds_type: typeEntiteFilter,
-      ds_diplome: typeDiplomeFilter,
-      ds_page: page === 1 ? "" : page,
-    });
-  }, [activeTab, query, roleFilter, hierarchyFilters, typeEntiteFilter, typeDiplomeFilter, page, filtersHydrated]);
 
   return (
     <div className="space-y-6">
@@ -456,7 +428,7 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
             {structures.length === 0 && <div className="text-slate-500">Aucun résultat</div>}
             {structures.map((item) => {
               const parent = item.id_entite_parent
-                ? entites.find((e) => e.id_entite === item.id_entite_parent)
+                ? yearEntites.find((e) => e.id_entite === item.id_entite_parent)
                 : null;
               return (
                 <div key={item.id_entite} className="border border-slate-200 rounded-lg p-4">

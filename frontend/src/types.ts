@@ -108,6 +108,7 @@ export interface UserRoleAssignment {
   structureType: 'composante' | 'departement' | 'mention' | 'specialite' | 'parcours';
   entiteId: number;
   year: string; // Année universitaire
+  yearId?: number;
   functionalEmail?: string; // Email fonctionnel lié au rôle
   hierarchyLevel: number; // Niveau hiérarchique (1 = directeur composante, etc.)
 }

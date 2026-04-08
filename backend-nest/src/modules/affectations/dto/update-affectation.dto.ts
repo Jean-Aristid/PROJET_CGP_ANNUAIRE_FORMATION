@@ -7,6 +7,15 @@ export class UpdateAffectationDto {
   id_role?: string;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  id_entite?: number;
+
+  @IsOptional()
+  @IsDateString()
+  date_debut?: string;
+
+  @IsOptional()
   @IsDateString()
   date_fin?: string | null;
 

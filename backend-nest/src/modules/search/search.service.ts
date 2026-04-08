@@ -26,7 +26,7 @@ export class SearchService {
     const ids = raw
       .split(',')
       .map((s) => s.trim())
-      .filter(Boolean)
+      .filter((s) => /^\d+$/.test(s))
       .map((s) => BigInt(s));
     return ids.length > 0 ? ids : null;
   }
