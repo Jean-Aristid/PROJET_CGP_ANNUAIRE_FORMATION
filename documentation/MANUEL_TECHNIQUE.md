@@ -1,16 +1,20 @@
 # Manuel Technique
 
+Etat du manuel: avril 2026.
+
 ## 1. Objet du projet
 
-Le projet CGP est un annuaire de formation universitaire avec gouvernance par rôles, structures et années universitaires. Il permet notamment:
+CGP est un annuaire de formation universitaire avec gouvernance par roles, structures et annees universitaires.
 
-- la recherche de responsables, formations, structures et secrétariats
-- la gestion des utilisateurs, affectations et contacts de rôle
-- la gestion hiérarchique des structures académiques
-- la génération et l'export d'organigrammes de structures et de personnes
-- la gestion des délégations, demandes de rôles, notifications et signalements
-- la gestion du cycle de vie des années universitaires
-- l'import/export de données, y compris via un classeur Excel standardisé réimportable
+Le produit couvre notamment:
+
+- la recherche avancee de responsables, formations, structures et secretariats
+- la gestion des utilisateurs, affectations et contacts fonctionnels
+- la gestion des delegations, demandes de roles, signalements et notifications
+- la gestion des fiches structures
+- la generation et l'export d'organigrammes
+- la gestion du cycle de vie des annees universitaires
+- l'import et l'export metier via workbook standardise
 
 ## 2. Stack technique
 
@@ -20,7 +24,6 @@ Le projet CGP est un annuaire de formation universitaire avec gouvernance par r�
 - NestJS 11
 - Prisma 7
 - PostgreSQL 16
-- PDFKit pour les exports PDF d'organigramme
 
 ### Frontend
 
@@ -28,132 +31,111 @@ Le projet CGP est un annuaire de formation universitaire avec gouvernance par r�
 - Vite 5
 - TypeScript
 - Tailwind CSS
-- `lucide-react` pour les icônes
+- `lucide-react` pour les icones
 
 ### Orchestration locale
 
 - Docker Compose
-- trois services permanents: `db`, `backend-nest`, `frontend`
-- un service outil optionnel: `migrate`
+- services permanents:
+  `db`, `backend-nest`, `frontend`
+- service outil optionnel:
+  `migrate`
 
 ## 3. Architecture globale
 
-## 3.1 Vue logique
+Flux principal:
 
-Le flux principal est le suivant:
+1. le navigateur charge l'application React sur `frontend`
+2. le frontend appelle l'API via `/api`
+3. le backend applique les gardes d'authentification, de role, de portee structurelle et d'annee
+4. Prisma interagit avec PostgreSQL
+5. certains flux lisent ou ecrivent des fichiers metier via `files/`
 
-1. Le navigateur charge l'application React sur `frontend`.
-2. Le frontend appelle l'API via `/api`.
-3. Le backend NestJS applique les gardes d'authentification, de rôle, de portée structurelle et d'année.
-4. Prisma interagit avec PostgreSQL.
-5. Certains flux lisent ou exportent aussi des fichiers standardisés via `files/`.
-
-## 3.2 Structure du dépôt
+Structure du depot:
 
 ```text
 .
-├── backend-nest/
-│   ├── prisma/
-│   ├── src/
-│   │   ├── auth/
-│   │   ├── common/
-│   │   └── modules/
-│   └── test/
-├── frontend/
-│   └── src/
-├── files/
-├── script/
-├── docker-compose.yml
-└── documentation/
+|-- backend-nest/
+|   |-- prisma/
+|   |-- src/
+|   `-- test/
+|-- frontend/
+|   `-- src/
+|-- documentation/
+|-- files/
+|-- script/
+`-- docker-compose.yml
 ```
 
-## 3.3 Dossiers importants
+## 4. Authentification et controle d'acces
 
-- `backend-nest/src/auth/`
-  Auth mock et logique d'autorisation.
-- `backend-nest/src/common/`
-  Prisma, décorateurs, gardes, filtres, intercepteurs et types partagés.
-- `backend-nest/src/modules/`
-  Modules métier.
-- `backend-nest/prisma/`
-  Schéma Prisma, seed, initialisation Docker et utilitaires DB.
-- `frontend/src/components/`
-  Écrans métier.
-- `frontend/src/lib/`
-  utilitaires API, état URL, hiérarchie des entités et format Excel standard.
-- `files/assets/`
-  documents et classeurs de référence du projet.
-- `script/db/init/`
-  initialisation SQL Postgres exécutée au premier démarrage du conteneur DB.
+### 4.1 Authentification
 
-## 4. Authentification, rôles et contrôles d'accès
+En developpement, le projet fonctionne par defaut avec `AUTH_MODE=mock`.
 
-## 4.1 Authentification
-
-Le projet fonctionne actuellement en mode `AUTH_MODE=mock` par défaut en développement.
+Mecanisme:
 
 - le frontend stocke le login dans `localStorage`
-- chaque appel API ajoute le header `x-user-login`
-- le backend reconstruit l'utilisateur courant à partir de la table `utilisateur` et de ses `affectation`
+- chaque appel API ajoute `x-user-login`
+- le backend reconstruit l'utilisateur courant a partir de la base et de ses affectations
 
-Conséquence pratique:
+### 4.2 Roles applicatifs
 
-- il n'y a pas de session serveur classique
-- la base doit contenir un utilisateur correspondant au login transmis
-- hors développement, le `MockAuthGuard` refuse le mode mock
+Les roles de reference sont definis:
 
-## 4.2 Rôles
+- cote backend dans `backend-nest/src/auth/roles.constants.ts`
+- cote frontend dans `frontend/src/types.ts`
 
-Les rôles applicatifs sont définis dans `backend-nest/src/auth/roles.constants.ts` et répliqués côté frontend dans `frontend/src/types.ts`.
-
-Les rôles structurants sont:
+Roles structurants:
 
 - `services-centraux`
 - `administrateur`
-- rôles de direction: composante, administratif, département, mention, spécialité, formation, année
+- roles de direction:
+  composante, administratif, departement, mention, specialite, formation, annee
 - `secretariat-pedagogique`
 - `utilisateur-simple`
 - `lecture-seule`
 
-## 4.3 Gardes backend
+### 4.3 Gardes backend
 
-Le backend applique globalement:
+Le backend applique principalement:
 
 - `MockAuthGuard`
-  hydrate `request.user` à partir de `x-user-login`
+  hydratation de `request.user`
 - `RolesGuard`
-  valide les rôles exigés par les contrôleurs
+  verification des roles declares sur les routes
 - `ScopeGuard`
-  limite l'accès à l'entité de l'utilisateur et à ses descendants hiérarchiques
+  verification du perimetre structurel
 - `YearGuard`
-  limite l'accès aux années de l'utilisateur, sauf `services-centraux`, et borne les autres rôles à l'année `EN_COURS`
+  verification du perimetre d'annee
 - `ThrottleGuard`
-  garde de base anti-abus
+  garde anti-abus de base
 
-## 4.4 Audit
+### 4.4 Regles d'acces importantes
 
-L'application utilise un `AuditInterceptor` global. Le journal métier est stocké dans `journal_audit` et consultable via le module audit réservé aux services centraux.
+- le changement d'annee dans l'interface est reserve aux services centraux
+- la recherche sans `yearId` est reservee aux profils globaux (`services-centraux`, `administrateur`)
+- l'edition des fiches structures est reservee aux services centraux
+- la creation de delegation reste reservee a certains roles de direction
 
-## 5. Modèle de données
+## 5. Modele de donnees
 
-## 5.1 Noyau métier
-
-Le schéma Prisma tourne autour de quelques modèles centraux:
+Noyau metier principal:
 
 - `annee_universitaire`
-  année académique, statut, lien éventuel vers l'année source
 - `entite_structure`
-  arbre hiérarchique des structures pour une année
 - `utilisateur`
-  identité de la personne
 - `role`
-  référentiel de rôles
 - `affectation`
-  lien entre utilisateur, rôle, structure et année
 - `contact_role`
-  coordonnées fonctionnelles portées par une affectation
+- `delegation`
+- `organigramme`
+- `signalement`
+- `notification`
+- `demande_role`
+- `journal_audit`
 
-## 5.2 Hiérarchie des structures
+### 5.1 Hierarchie des structures
 
 Les types structurants sont:
 
@@ -163,9 +145,9 @@ Les types structurants sont:
 - `PARCOURS`
 - `NIVEAU`
 
-La hiérarchie est portée par `entite_structure.id_entite_parent`.
+La hierarchie est portee par `entite_structure.id_entite_parent`.
 
-Les tables spécialisées enrichissent selon le type:
+Tables specialisees associees:
 
 - `composante`
 - `departement`
@@ -173,270 +155,218 @@ Les tables spécialisées enrichissent selon le type:
 - `parcours`
 - `niveau`
 
-## 5.3 Relations métier complémentaires
+### 5.2 Particularites metier
 
-- `delegation`
-  délégation d'un droit entre deux utilisateurs sur une entité
-- `organigramme`
-  trace d'une génération d'organigramme et de ses exports
-- `signalement`
-  erreur ou demande de correction remontée par un utilisateur
-- `notification`
-  notifications liées aux demandes et signalements
-- `demande_role`
-  demande de rôle personnalisé
-- `demande_modification`
-  demande de modification ciblée
-- `journal_audit`
-  journal de changements
-
-## 5.4 Particularités importantes
-
-- `affectation` est unique sur `(id_user, id_role, id_entite, id_annee)`
-- la hiérarchie des personnes repose sur `affectation.id_affectation_n_plus_1`
-- `annee_universitaire.id_annee_source` permet de tracer un clonage
-- certaines suppressions nécessitent un ordre précis à cause des dépendances métier
+- une affectation est unique sur `(id_user, id_role, id_entite, id_annee)`
+- la hierarchie des personnes repose sur `id_affectation_n_plus_1`
+- `contact_role` porte les coordonnees fonctionnelles de l'affectation
+- certaines operations de suppression doivent respecter un ordre strict a cause des dependances metier
 
 ## 6. Modules backend
 
-| Module | Rôle principal | Fichiers pivots |
-| --- | --- | --- |
-| `auth` | hydratation de l'utilisateur courant, lecture profil | `auth.service.ts`, `auth.controller.ts` |
-| `users` | listing, détail, création, mise à jour, suppression d'utilisateurs | `users.controller.ts`, `users.service.ts` |
-| `roles` | référentiel des rôles et demandes de rôles | `roles.controller.ts`, `roles.service.ts` |
-| `entites` | liste, détail et édition des structures | `entites.controller.ts`, `entites.service.ts` |
-| `affectations` | création, édition, suppression d'affectations et contacts | `affectations.controller.ts`, `affectations.service.ts` |
-| `search` | recherche annuaire multi-axes | `search.controller.ts`, `search.service.ts` |
-| `delegations` | délégations, export CSV, révocation | `delegations.controller.ts`, `delegations.service.ts` |
-| `organigrammes` | génération, lecture, figer, export PDF/CSV/JSON/SVG | `organigrammes.controller.ts`, `organigrammes.service.ts` |
-| `annees` | lister, cloner, archiver, supprimer avec sauvegarde | `annees.controller.ts`, `annees.service.ts` |
-| `exports` | exports hérités et classeur standardisé | `exports.controller.ts`, `exports.service.ts`, `standard-workbook.service.ts` |
-| `imports` | imports hérités CSV et import workbook standardisé avec preview | `imports.controller.ts`, `imports.service.ts` |
-| `dashboard` | statistiques de synthèse | `dashboard.controller.ts`, `dashboard.service.ts` |
-| `demandes` | signalements et traitement | `signalements.controller.ts`, `signalements.service.ts` |
-| `notifications` | lecture des notifications et marquage lu | `notifications.controller.ts`, `notifications.service.ts` |
-| `audit` | consultation et export du journal d'audit | `audit.controller.ts`, `audit.service.ts` |
+| Module | Role principal |
+| --- | --- |
+| `auth` | hydratation de l'utilisateur courant |
+| `users` | listing, detail, creation, mise a jour, suppression d'utilisateurs |
+| `roles` | referentiel des roles et demandes de roles |
+| `entites` | liste, detail et edition des structures |
+| `affectations` | creation, edition, suppression d'affectations et contacts |
+| `search` | recherche annuaire multi-onglets |
+| `delegations` | liste, creation, export CSV, revocation |
+| `organigrammes` | generation, lecture, gel, export |
+| `annees` | creation, clonage, activation, archivage, suppression |
+| `imports` | preview et import du workbook standardise |
+| `exports` | exports metier et workbook |
+| `dashboard` | statistiques de synthese |
+| `demandes` | signalements et traitement |
+| `notifications` | lecture et marquage des notifications |
+| `audit` | consultation et export du journal d'audit |
 
 ## 7. Frontend
 
-## 7.1 Organisation générale
+### 7.1 Orchestration
 
-`frontend/src/App.tsx` orchestre:
+`frontend/src/App.tsx` pilote:
 
-- l'authentification locale
-- le chargement de l'utilisateur courant
-- la sélection de l'année courante, avec changement de contexte réservé aux `services-centraux`
-- le menu de navigation
-- le rendu conditionnel des écrans selon le rôle
+- la connexion locale
+- le chargement du profil courant
+- le contexte d'annee
+- la navigation par ecrans
+- le passage des props de role, annee et perimetre aux composants metier
 
-## 7.2 Écrans principaux
+### 7.2 Ecrans principaux
 
-| Écran | Fichier | Rôle |
+| Ecran | Fichier | Remarque |
 | --- | --- | --- |
-| Tableau de bord | `Dashboard.tsx` | synthèse chiffrée |
-| Recherche | `DirectorySearch.tsx` | recherche responsables, formations, structures, secrétariats |
-| Responsables | `ManageResponsibles.tsx` | gestion personnes, affectations, filtres hiérarchiques |
-| Fiches structures | `ManageStructures.tsx` | consultation et édition des structures |
-| Demandes de rôles | `ManageRoles.tsx` | création et revue des demandes |
-| Délégations | `Delegations.tsx` | création, suivi, révocation, export |
-| Organigramme | `OrgChart.tsx` | génération, lecture, filtre, export, vue structures/personnes |
-| Import / Export | `ImportExport.tsx` | imports hérités et classeur standardisé |
-| Années | `YearManagement.tsx` | clonage, archivage, activation, suppression avec sauvegarde |
-| Signalements | `ErrorReports.tsx` | création et traitement |
-| Audit | `AuditLogs.tsx` | consultation des logs |
-| Profil | `UserProfile.tsx` | édition limitée de la fiche utilisateur |
+| Tableau de bord | `Dashboard.tsx` | synthese |
+| Recherche | `DirectorySearch.tsx` | recherche multi-onglets, perimetre annee ou base complete pour profils globaux |
+| Responsables | `ManageResponsibles.tsx` | personnes, affectations, edition des coordonnees et des contacts |
+| Fiches structures | `ManageStructures.tsx` | detail structure et edition par type |
+| Demandes de roles | `ManageRoles.tsx` | creation et revue |
+| Delegations | `Delegations.tsx` | creation, filtres dynamiques, revocation, export |
+| Organigramme | `OrgChart.tsx` | generation, lecture, filtres et exports |
+| Import / Export | `ImportExport.tsx` | workflow workbook standardise |
+| Annees | `YearManagement.tsx` | creation, clonage, activation, archivage |
+| Signalements | `ErrorReports.tsx` | creation et traitement |
+| Audit | `AuditLogs.tsx` | consultation des traces |
+| Profil | `UserProfile.tsx` | fiche utilisateur |
 
-## 7.3 Utilitaires frontend
+### 7.3 Utilitaires frontend
 
 - `lib/api.ts`
   wrapper `fetch`, ajout automatique du header `x-user-login`
-- `lib/url-state.ts`
-  persistance des filtres dans l'URL
 - `lib/entite-hierarchy.ts`
-  logique partagée de filtres hiérarchiques dynamiques
-- `lib/standard-workbook.ts`
-  parsing et téléchargement du format Excel XML standardisé
+  logique partagee de filtres hierarchiques dynamiques
+- `lib/url-state.ts`
+  gestion des parametres d'URL sur certains ecrans
 
-## 8. Flux métier sensibles
+Note:
 
-## 8.1 Gestion des années
+- `DirectorySearch` et `Delegations` nettoient explicitement les anciens parametres `ds_*` et `dg_*`
+- l'objectif est d'eviter de laisser des etats sensibles dans l'URL sur ces ecrans
 
-Le module années permet désormais:
+## 8. Flux metier sensibles
 
-- création d'une année vide
-- création d'une année par clonage d'une année source
-- clonage de toute la base ou d'un sous-ensemble de structures racines
-- choix de copier ou non les affectations
-- archivage ou activation d'une année
-- suppression avec export automatique d'un classeur de sauvegarde standardisé
+### 8.1 Recherche avancee
 
-Le clonage recopie:
+Le module `search` supporte quatre onglets:
 
-- les structures retenues
-- les tables spécialisées liées aux structures
-- les contacts de rôle
-- les affectations et la hiérarchie N+1 si demandé
+- responsables
+- formations
+- structures
+- secretariats
 
-## 8.2 Organigrammes
+Points techniques notables:
 
-Le module organigrammes supporte:
+- le frontend recharge dynamiquement la liste des structures de filtre quand le perimetre change
+- `yearId` est optionnel cote backend, mais son absence est interdite aux profils non globaux
+- la recherche hierarchique s'appuie sur `entiteIds`, calcule cote frontend a partir du filtre selectionne
+- le frontend parse correctement la reponse `/roles` sous forme `{ items }`
 
-- vue `structures`
-- vue `personnes`
-- filtres de recherche, rôle et hiérarchie
-- export `PDF`, `CSV`, `JSON`, `SVG`
-- figer et défiger un organigramme
-- consultation d'une bibliothèque d'organigrammes déjà générés
-- limitation du nombre d'éléments affichés dans la bibliothèque, avec filtres pour retrouver le reste
-- réutilisation du dernier organigramme non figé quand une génération identique est relancée sur la même racine et la même année
+### 8.2 Gestion des responsables
 
-Dans la vue personnes:
+Le module `ManageResponsibles` permet maintenant:
 
-- seuls les nœuds personne sont affichés
-- l'affiliation structurelle apparaît dans les informations
-- le mail institutionnel principal et le mail secondaire apparaissent dans la fiche personne si disponibles
-- la hiérarchie N+1 reste prise en compte
+- l'edition des champs personne:
+  `nom`, `prenom`, `email_institutionnel`, `email_institutionnel_secondaire`, `genre`, `categorie`, `telephone`, `bureau`
+- l'ajout et la suppression d'affectations
+- l'edition d'une affectation existante:
+  role, structure, dates, email fonctionnel, telephone fonctionnel, bureau fonctionnel
 
-Dans la vue structures:
+### 8.3 Fiches structures
 
-- les responsables affichés dans le détail rapide sont volontairement simplifiés
-- seuls le nom, le prénom et le mail institutionnel sont présentés
-- le rôle n'est pas répété dans cette fiche rapide pour garder une lecture plus compacte
+Le module `ManageStructures` expose un detail complet par type et un modal d'edition reserve aux services centraux.
 
-Règles d'accès importantes:
+Champs couverts selon le type:
 
-- `services-centraux` peuvent générer sur toute racine autorisée et figer ou défiger
-- les autres rôles de direction ne peuvent générer que sur leur structure et ses descendants
-- les organigrammes déjà générés peuvent être consultés par les autres rôles, y compris hors de leur périmètre de génération, pour permettre la recherche de contacts
-- le chargement par défaut du "dernier organigramme" reste borné au périmètre de l'utilisateur hors services centraux pour éviter d'ouvrir automatiquement un organigramme externe
+- composante:
+  `code_composante`, `type_composante`, `mail_fonctionnel`, `mail_institutionnel`, `campus`, `site_web`
+- departement:
+  `code_interne`
+- mention:
+  `type_diplome`, `cycle`
+- parcours:
+  `code_parcours`
+- niveau:
+  `libelle_court`
 
-## 8.3 Import / export standardisé
+### 8.4 Delegations
 
-Le format standardisé est `CGP_STANDARD_V1`.
+Le module `Delegations` a deux comportements a distinguer:
 
-Il repose sur un classeur XML compatible Excel contenant:
+- la consultation peut rester bornee au perimetre structurel visible de l'utilisateur
+- la creation est plus stricte:
+  pour les profils non centraux, seule une structure d'affectation directe peut etre choisie
 
-- `roles`
-- `structures`
-- `users`
-- `affectations`
-- `contacts`
-- `delegations`
-- `signalements`
-- `organigrammes`
+Le formulaire de creation propose:
 
-Le backend gère:
+- des filtres hierarchiques dynamiques
+- une liste de structures deja filtree par perimetre autorise
+- les droits suivants:
+  `view`, `manage_responsables`, `assign_role`, `validate_signalement`, `generate_orgchart`, `import_data`, `full`
 
-- export année complète
+### 8.5 Annees universitaires
+
+Le module `annees` permet:
+
+- la creation d'une annee vide
+- le clonage complet ou selectif
+- la copie optionnelle des affectations
+- l'activation ou l'archivage
+- la suppression avec sauvegarde workbook prealable
+
+### 8.6 Import / export standardise
+
+Le format standardise du projet est `CGP_STANDARD_V1`.
+
+Le backend gere:
+
+- export d'une annee complete
 - export d'une structure et de son sous-arbre
-- génération d'un modèle vide
-- preview d'import avec décision par ligne
-- import ciblé sur une structure du fichier
-- création éventuelle de l'année cible
+- generation d'un modele vide
+- preview d'import
+- import complet ou cible sur une structure source
 
-Les statuts de preview sont:
+## 9. Docker et exploitation
 
-- `create`
-- `update`
-- `reuse`
-- `skip`
-- `warning`
-- `error`
+Le mode de travail recommande est Docker-first.
 
-## 8.4 Recherche et filtres dynamiques
+Implications pratiques:
 
-Plusieurs écrans partagent désormais des filtres hiérarchiques composante vers niveau. L'objectif est de ne plus bloquer l'utilisateur dans un chemin unique et de lui permettre:
+- ne pas documenter de workflow quotidien base sur `npm` local hote
+- lancer la stack avec `docker compose up -d --build`
+- lancer les builds et tests avec `docker compose exec ...`
 
-- une recherche directe libre
-- un ciblage par structure
-- un raffinement progressif par sous-filtres
-- des recherches par identifiants métier disponibles dans la base
+Le backend demarre via `npm run start:docker`, qui execute:
 
-## 9. Données, seeds et fichiers de référence
+1. `prisma generate`
+2. `npm run docker:init`
+3. `nest start --watch`
 
-## 9.1 Initialisation de la base
+## 10. Conventions importantes
 
-Deux approches coexistent:
+### 10.1 Convention d'API
 
-- initialisation SQL via `script/db/init/`
-- initialisation Prisma via `backend-nest/prisma/docker-init.ts`
-
-`docker-init.ts` applique:
-
-- `prisma migrate deploy` si des migrations existent
-- sinon `prisma db push`
-- puis un seed CSV seulement si la base est vide
-
-## 9.2 Seeds Prisma
-
-Les seeds disponibles sont:
-
-- `prisma/seed.ts`
-  seed démonstration riche
-- `prisma/seed-from-csv.ts`
-  seed depuis CSV si les fichiers source sont présents
-- `prisma/reset-db.ts`
-  reset de la base
-
-## 9.3 Fichiers métier
-
-Le dossier `files/assets/` contient des documents de référence utiles pour comprendre le métier et valider certaines hiérarchies, notamment `Annuaire.xlsx`.
-
-## 10. Conventions et points d'attention
-
-## 10.1 Convention d'API
-
-Les contrôleurs renvoient souvent des enveloppes de type:
+Les routes renvoient le plus souvent des enveloppes:
 
 - `{ items }`
 - `{ item }`
 - `{ user }`
-- `{ year }`
-- `{ organigramme, arbre }`
+- `{ affectation }`
+- `{ delegation }`
 
-Le frontend dépend de ces enveloppes. Un changement de forme de réponse doit être synchronisé des deux côtés.
+Le frontend depend de ces envelopes. Tout changement de forme doit etre synchronise des deux cotes.
 
-## 10.2 Gestion des exports
+### 10.2 Dist frontend
 
-Plusieurs exports sont renvoyés comme JSON contenant le nom de fichier, le type MIME et du contenu encodé en base64. Ce choix évite d'introduire une mécanique de téléchargement binaire plus lourde côté Vite/React.
+Le dossier `frontend/dist/` est regenere lors des builds Docker du frontend.
 
-## 10.3 Dette ou vigilance actuelle
+### 10.3 Vigilance actuelle
 
-- le backend a quelques tests unitaires, mais la couverture reste partielle
-- le frontend n'a pas de suite de tests automatisés dédiée
-- la qualité des imports dépend fortement de la cohérence des identifiants et du `login`
-- les gardes de portée et d'année doivent être surveillés à chaque ajout d'endpoint
-- les fichiers `dist/` sont régénérés lors des builds Docker
+- la couverture de tests automatisee reste partielle
+- le frontend repose surtout sur le build et la recette manuelle
+- toute evolution de garde ou de role doit etre reverifiee a la fois cote UI et cote API
 
-## 11. Étendre proprement le projet
+## 11. Faire evoluer proprement le projet
 
-### Ajouter un nouveau module backend
+### Ajouter un endpoint backend
 
-1. créer un module, un service et un contrôleur NestJS
-2. brancher le module dans `AppModule`
-3. protéger les routes avec `@Roles` si nécessaire
-4. vérifier l'impact `ScopeGuard` et `YearGuard`
-5. documenter la route dans `API_BACKEND.md`
+1. creer le service et le controleur
+2. proteger la route avec `@Roles` si necessaire
+3. verifier l'impact `ScopeGuard` et `YearGuard`
+4. synchroniser le contrat dans `API_BACKEND.md`
 
-### Ajouter un nouvel écran frontend
+### Ajouter ou modifier un ecran frontend
 
-1. créer le composant dans `frontend/src/components/`
-2. ajouter le type de vue si besoin dans `frontend/src/types.ts`
-3. brancher l'écran dans `App.tsx`
-4. vérifier les droits d'accès UI
-5. documenter l'écran dans ce manuel ou dans la recette
+1. creer ou adapter le composant dans `frontend/src/components/`
+2. brancher l'ecran dans `App.tsx`
+3. verifier les droits d'acces UI
+4. verifier le contrat API reel
+5. mettre a jour la documentation utilisateur et la recette
 
-### Faire évoluer le format workbook
+### Faire evoluer le workbook standardise
 
-1. modifier `STANDARD_WORKBOOK_COLUMNS` côté backend
-2. synchroniser le parser frontend
-3. versionner si rupture de compatibilité
-4. mettre à jour la documentation d'import/export
-
-## 12. Documents complémentaires
-
-Pour aller plus loin:
-
-- voir [API_BACKEND.md](./API_BACKEND.md) pour les routes
-- voir [EXPLOITATION_MAINTENANCE.md](./EXPLOITATION_MAINTENANCE.md) pour l'exploitation locale et la maintenance
-- voir [RECETTE_TEST.md](./RECETTE_TEST.md) pour la recette et la non-régression
+1. modifier les colonnes et le parser cote backend
+2. synchroniser le parser cote frontend
+3. verifier la compatibilite ascendante
+4. documenter les changements

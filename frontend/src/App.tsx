@@ -762,8 +762,10 @@ export default function App() {
             {currentView === "search" && (
               <DirectorySearch
                 currentYear={currentYear}
+                availableYears={academicYears}
                 entites={entites}
                 authLogin={authLogin}
+                userRole={currentUser.role}
               />
             )}
             {currentView === "user-profile" && (

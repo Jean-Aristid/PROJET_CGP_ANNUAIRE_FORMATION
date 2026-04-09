@@ -1,42 +1,51 @@
 # Documentation Projet
 
-Cette documentation sert de base de travail pour quatre profils:
+Etat de la documentation: avril 2026.
 
-- utilisateurs métier qui doivent utiliser l'application au quotidien
-- développeurs qui doivent comprendre l'architecture et modifier le code
-- testeurs qui doivent valider les parcours clés et les droits
-- mainteneurs qui doivent démarrer, diagnostiquer, sauvegarder et faire évoluer la plateforme
+Cette base documentaire couvre l'etat actuel du depot:
+
+- `frontend/`: application React / Vite
+- `backend-nest/`: API NestJS / Prisma
+- `docker-compose.yml`: orchestration locale
+- `files/`: assets et fichiers metier
+- `script/`: scripts d'initialisation et utilitaires
 
 ## Sommaire
 
 - [MANUEL_UTILISATEUR.md](./MANUEL_UTILISATEUR.md)
-  Guide d'utilisation orienté métier, avec liste précise des captures d'écran à produire.
+  Guide d'usage metier: connexion, recherche, responsables, structures, delegations, imports, signalements.
 
 - [MANUEL_TECHNIQUE.md](./MANUEL_TECHNIQUE.md)
-  Vue d'ensemble du produit, architecture, modules, modèle de données et conventions.
+  Vue d'ensemble technique: architecture, modules, roles, flux sensibles, conventions.
+
 - [API_BACKEND.md](./API_BACKEND.md)
-  Catalogue des endpoints NestJS, droits d'accès et contrats utiles.
+  Catalogue des endpoints NestJS, regles d'acces et contrats utiles.
+
 - [EXPLOITATION_MAINTENANCE.md](./EXPLOITATION_MAINTENANCE.md)
-  Démarrage, Docker, variables d'environnement, seed, maintenance et dépannage.
+  Demarrage Docker, maintenance courante, seeds, migrations, depannage.
+
 - [RECETTE_TEST.md](./RECETTE_TEST.md)
-  Stratégie de test, tests existants, cas de recette manuelle et checklists de non-régression.
+  Strategie de verification, recette manuelle et points de non-regression.
 
-## Portée
+- [captures/README.md](./captures/README.md)
+  Convention de nommage et liste des captures a produire pour le manuel utilisateur.
 
-La documentation couvre l'état actuel du dépôt:
+## Points fonctionnels notables documentes
 
-- `frontend/`: application React/Vite
-- `backend-nest/`: API NestJS/Prisma
-- `docker-compose.yml`: orchestration locale
-- `script/`: scripts SQL et utilitaires de préparation de données
-- `files/`: fichiers de référence, exports et assets projet
+- recherche avancee multi-onglets avec filtres hierarchiques dynamiques
+- recherche sur toute la base reservee aux profils globaux autorises
+- edition et gestion des responsables avec affectations et contacts fonctionnels
+- edition complete des fiches structures par les services centraux
+- creation de delegations avec filtrage dynamique et perimetre borne
+- exploitation quotidienne via Docker
 
-## Règle de maintenance
+## Regle de maintenance
 
-À chaque évolution structurelle importante, cette documentation doit être revue en même temps que le code, en particulier si les changements touchent:
+Cette documentation doit etre revue a chaque evolution qui touche:
 
-- le schéma Prisma
+- le schema Prisma
 - les routes backend
-- les rôles et gardes d'autorisation
-- les formats d'import/export
-- les workflows année universitaire ou organigramme
+- les roles ou les gardes d'autorisation
+- les ecrans de gestion et leurs filtres
+- les formats d'import / export
+- les workflows annee universitaire ou organigramme

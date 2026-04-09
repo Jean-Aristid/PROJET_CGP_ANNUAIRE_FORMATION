@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Building2, ChevronLeft, ChevronRight, GraduationCap, Mail, Phone, Users } from "lucide-react";
-import { AcademicYear, EntiteStructure } from "../types";
+import { AcademicYear, EntiteStructure, UserRole, canAccessFilteredQueries } from "../types";
 import { apiFetch } from "../lib/api";
 import { FilterBar } from "./ui/filter-bar";
 import { writeQueryParams } from "../lib/url-state";
@@ -11,12 +11,15 @@ import {
   getDeepestSelectedEntiteId,
   getDescendantEntiteIds,
   getHierarchyOptions,
+  updateHierarchyFilters,
 } from "../lib/entite-hierarchy";
 
 interface DirectorySearchProps {
   currentYear: AcademicYear;
+  availableYears: AcademicYear[];
   entites: EntiteStructure[];
   authLogin: string | null;
+  userRole: UserRole;
 }
 
 type SearchTab = "responsables" | "formations" | "structures" | "secretariats";
@@ -70,20 +73,37 @@ type PagedResponse<T> = {
   total: number;
 };
 
-const PAGE_SIZE = 20;
+type ApiRole = {
+  id?: string;
+  id_role?: string;
+  libelle: string;
+};
 
-type ApiRole = { id: string; libelle: string };
+const PAGE_SIZE = 20;
+const ALL_YEARS_VALUE = "__all__";
 
 const HIERARCHY_EMPTY_LABELS: Record<keyof HierarchyFilters, string> = {
   composanteId: "Toutes les composantes",
-  departementId: "Tous les départements",
+  departementId: "Tous les departements",
   mentionId: "Toutes les mentions",
   parcoursId: "Tous les parcours",
   niveauId: "Tous les niveaux",
 };
 
-export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySearchProps) {
+const getRoleId = (role: ApiRole) => role.id || role.id_role || "";
+
+export function DirectorySearch({
+  currentYear,
+  availableYears,
+  entites,
+  authLogin,
+  userRole,
+}: DirectorySearchProps) {
+  const canQueryWholeBase =
+    canAccessFilteredQueries(userRole) || userRole === "administrateur";
+
   const [activeTab, setActiveTab] = useState<SearchTab>("responsables");
+  const [yearFilter, setYearFilter] = useState(currentYear.id);
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [hierarchyFilters, setHierarchyFilters] = useState<HierarchyFilters>(EMPTY_HIERARCHY_FILTERS);
@@ -91,6 +111,7 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
   const [typeDiplomeFilter, setTypeDiplomeFilter] = useState("");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [entitesLoading, setEntitesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [responsables, setResponsables] = useState<ApiResponsable[]>([]);
   const [formations, setFormations] = useState<ApiFormation[]>([]);
@@ -98,31 +119,39 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
   const [secretariats, setSecretariats] = useState<ApiStructure[]>([]);
   const [total, setTotal] = useState(0);
   const [allRoles, setAllRoles] = useState<ApiRole[]>([]);
+  const [searchEntites, setSearchEntites] = useState<EntiteStructure[]>(entites);
 
-  const yearEntites = useMemo(
-    () => entites.filter((entite) => String(entite.id_annee) === currentYear.id),
-    [entites, currentYear.id],
+  const selectedYearId =
+    canQueryWholeBase && yearFilter === ALL_YEARS_VALUE ? "" : yearFilter;
+  const showWholeBaseResults = canQueryWholeBase && !selectedYearId;
+
+  const yearLabelById = useMemo(
+    () => new Map(availableYears.map((year) => [Number(year.id), year.year])),
+    [availableYears],
   );
 
-  const hierarchyOptions = useMemo(
-    () => getHierarchyOptions(yearEntites, hierarchyFilters, currentYear.id),
-    [yearEntites, hierarchyFilters, currentYear.id],
-  );
+  const yearScopeLabel = useMemo(() => {
+    if (showWholeBaseResults) {
+      return "Toute la base";
+    }
+    return availableYears.find((year) => year.id === selectedYearId)?.year || currentYear.year;
+  }, [availableYears, currentYear.year, selectedYearId, showWholeBaseResults]);
 
-  const entiteIds = useMemo((): string | undefined => {
-    const selectedEntiteId = getDeepestSelectedEntiteId(hierarchyFilters);
-    if (!selectedEntiteId) {
-      return undefined;
+  useEffect(() => {
+    if (!canQueryWholeBase) {
+      setYearFilter(currentYear.id);
+      return;
     }
 
-    return Array.from(
-      getDescendantEntiteIds(yearEntites, selectedEntiteId, { yearId: currentYear.id }),
-    ).join(",");
-  }, [currentYear.id, yearEntites, hierarchyFilters]);
+    setYearFilter((previous) =>
+      previous === ALL_YEARS_VALUE ? previous : currentYear.id,
+    );
+  }, [canQueryWholeBase, currentYear.id]);
 
   useEffect(() => {
     writeQueryParams({
       ds_tab: "",
+      ds_year: "",
       ds_q: "",
       ds_role: "",
       ds_comp: "",
@@ -137,25 +166,106 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
   }, []);
 
   useEffect(() => {
-    setPage(1);
-  }, [activeTab, query, roleFilter, hierarchyFilters, typeEntiteFilter, typeDiplomeFilter, currentYear.id]);
+    setHierarchyFilters(EMPTY_HIERARCHY_FILTERS);
+  }, [selectedYearId]);
 
   useEffect(() => {
-    // Réinitialiser les filtres spécifiques à chaque onglet au changement d'onglet
-    if (activeTab !== "responsables") setRoleFilter("");
+    if (!authLogin) {
+      setSearchEntites(entites);
+      return;
+    }
+
+    let mounted = true;
+    const canReuseCurrentYearEntites =
+      selectedYearId !== "" && selectedYearId === currentYear.id && entites.length > 0;
+
+    if (canReuseCurrentYearEntites) {
+      setSearchEntites(entites);
+    }
+
+    const loadEntites = async () => {
+      setEntitesLoading(true);
+      try {
+        const suffix = selectedYearId ? `?yearId=${selectedYearId}` : "";
+        const data = await apiFetch<{ items: EntiteStructure[] }>(`/entites${suffix}`, {
+          login: authLogin,
+        });
+        if (!mounted) return;
+        setSearchEntites(data.items || []);
+      } catch {
+        if (!mounted) return;
+        setSearchEntites(canReuseCurrentYearEntites ? entites : []);
+      } finally {
+        if (mounted) {
+          setEntitesLoading(false);
+        }
+      }
+    };
+
+    loadEntites();
+
+    return () => {
+      mounted = false;
+    };
+  }, [authLogin, currentYear.id, entites, selectedYearId]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [
+    activeTab,
+    selectedYearId,
+    query,
+    roleFilter,
+    hierarchyFilters,
+    typeEntiteFilter,
+    typeDiplomeFilter,
+  ]);
+
+  useEffect(() => {
+    if (activeTab !== "responsables") {
+      setRoleFilter("");
+    }
     if (activeTab !== "formations") {
       setTypeDiplomeFilter("");
-      if (activeTab !== "structures") setTypeEntiteFilter("");
+      if (activeTab !== "structures") {
+        setTypeEntiteFilter("");
+      }
     }
   }, [activeTab]);
 
-  // Charger tous les rôles une fois pour le filtre (décorrélé des résultats courants)
   useEffect(() => {
     if (!authLogin) return;
-    apiFetch<ApiRole[]>("/roles", { login: authLogin })
-      .then((items) => setAllRoles(items))
+
+    apiFetch<ApiRole[] | { items?: ApiRole[] }>("/roles", { login: authLogin })
+      .then((data) => {
+        const roleItems = Array.isArray(data) ? data : data.items || [];
+        setAllRoles(roleItems.filter((role) => Boolean(getRoleId(role))));
+      })
       .catch(() => setAllRoles([]));
   }, [authLogin]);
+
+  const hierarchyOptions = useMemo(
+    () =>
+      getHierarchyOptions(
+        searchEntites,
+        hierarchyFilters,
+        selectedYearId || null,
+      ),
+    [searchEntites, hierarchyFilters, selectedYearId],
+  );
+
+  const entiteIds = useMemo((): string | undefined => {
+    const selectedEntiteId = getDeepestSelectedEntiteId(hierarchyFilters);
+    if (!selectedEntiteId) {
+      return undefined;
+    }
+
+    return Array.from(
+      getDescendantEntiteIds(searchEntites, selectedEntiteId, {
+        yearId: selectedYearId || null,
+      }),
+    ).join(",");
+  }, [hierarchyFilters, searchEntites, selectedYearId]);
 
   useEffect(() => {
     if (!authLogin) return;
@@ -166,7 +276,9 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
       setError(null);
       try {
         const params = new URLSearchParams();
-        params.set("yearId", currentYear.id);
+        if (selectedYearId) {
+          params.set("yearId", selectedYearId);
+        }
         params.set("page", String(page));
         params.set("pageSize", String(PAGE_SIZE));
         if (query.trim()) params.set("q", query.trim());
@@ -206,12 +318,37 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
     return () => {
       mounted = false;
     };
-  }, [activeTab, authLogin, currentYear.id, query, roleFilter, entiteIds, typeEntiteFilter, typeDiplomeFilter, page]);
+  }, [
+    activeTab,
+    authLogin,
+    entiteIds,
+    page,
+    query,
+    roleFilter,
+    selectedYearId,
+    typeDiplomeFilter,
+    typeEntiteFilter,
+  ]);
 
   const roleOptions = useMemo(
-    () => allRoles.map((r) => ({ id: r.id, label: r.libelle })),
+    () =>
+      allRoles.map((role) => ({
+        id: getRoleId(role),
+        label: role.libelle,
+      })),
     [allRoles],
   );
+
+  const yearOptions = useMemo(() => {
+    if (!canQueryWholeBase) {
+      return [];
+    }
+
+    return [
+      { value: ALL_YEARS_VALUE, label: "Toute la base" },
+      ...availableYears.map((year) => ({ value: year.id, label: year.year })),
+    ];
+  }, [availableYears, canQueryWholeBase]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const hasActiveFilters = Boolean(
@@ -230,11 +367,16 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
     setTypeDiplomeFilter("");
   };
 
+  const getYearLabel = (yearId: number) => yearLabelById.get(yearId) || String(yearId);
+
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-slate-900 mb-2">Recherche - {currentYear.year}</h2>
-        <p className="text-slate-600">Recherche par onglets : responsables, formations, structures et secrétariats.</p>
+        <h2 className="text-slate-900 mb-2">Recherche avancee - {yearScopeLabel}</h2>
+        <p className="text-slate-600">
+          Recherche par onglets : responsables, formations, structures et secretariats.
+          {canQueryWholeBase && " Les services centraux peuvent basculer entre une annee precise et toute la base."}
+        </p>
       </div>
 
       {error && (
@@ -249,7 +391,7 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
             { id: "responsables", label: "Responsables", icon: Users },
             { id: "formations", label: "Formations", icon: GraduationCap },
             { id: "structures", label: "Structures", icon: Building2 },
-            { id: "secretariats", label: "Secrétariats", icon: Mail },
+            { id: "secretariats", label: "Secretariats", icon: Mail },
           ] as const).map((tab) => (
             <button
               key={tab.id}
@@ -268,13 +410,25 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
 
         <FilterBar
           fields={[
+            ...(canQueryWholeBase
+              ? [
+                  {
+                    key: "year",
+                    label: "Perimetre",
+                    type: "select" as const,
+                    value: yearFilter,
+                    onChange: (value: string) => setYearFilter(value),
+                    options: yearOptions,
+                  },
+                ]
+              : []),
             {
               key: "query",
               label: "Recherche",
               type: "search",
               value: query,
               onChange: (value) => setQuery(value),
-              placeholder: "Nom, prénom, login, email, ID, code composante…",
+              placeholder: "Nom, prenom, login, email, ID, code composante...",
             },
             ...HIERARCHY_LEVELS.map((level, index) => {
               const options = hierarchyOptions[level.key];
@@ -284,15 +438,10 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
                 type: "select" as const,
                 value: hierarchyFilters[level.key],
                 onChange: (value: string) =>
-                  setHierarchyFilters((prev) => {
-                    const next = { ...prev };
-                    for (let currentIndex = index; currentIndex < HIERARCHY_LEVELS.length; currentIndex += 1) {
-                      const currentLevel = HIERARCHY_LEVELS[currentIndex];
-                      next[currentLevel.key] = currentLevel.key === level.key ? value : "";
-                    }
-                    return next;
-                  }),
-                disabled: options.length === 0,
+                  setHierarchyFilters((previous) =>
+                    updateHierarchyFilters(previous, level.key, value),
+                  ),
+                disabled: entitesLoading || options.length === 0,
                 options: [
                   { value: "", label: HIERARCHY_EMPTY_LABELS[level.key] },
                   ...options.map((entite) => ({
@@ -309,12 +458,12 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
               ? [
                   {
                     key: "role",
-                    label: "Rôle",
+                    label: "Role",
                     type: "select" as const,
                     value: roleFilter,
                     onChange: (value: string) => setRoleFilter(value),
                     options: [
-                      { value: "", label: "Tous les rôles" },
+                      { value: "", label: "Tous les roles" },
                       ...roleOptions.map((role) => ({ value: role.id, label: role.label })),
                     ],
                   },
@@ -332,21 +481,21 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
                       { value: "", label: "Tous les types" },
                       { value: "MENTION", label: "Mention" },
                       { value: "PARCOURS", label: "Parcours" },
-                      { value: "NIVEAU", label: "Niveau / Année" },
+                      { value: "NIVEAU", label: "Niveau / Annee" },
                     ],
                   },
                   {
                     key: "typeDiplome",
-                    label: "Diplôme",
+                    label: "Diplome",
                     type: "select" as const,
                     value: typeDiplomeFilter,
                     onChange: (value: string) => setTypeDiplomeFilter(value),
                     options: [
-                      { value: "", label: "Tous les diplômes" },
+                      { value: "", label: "Tous les diplomes" },
                       { value: "Licence", label: "Licence" },
                       { value: "Master", label: "Master" },
                       { value: "BUT", label: "BUT" },
-                      { value: "Ingénieur", label: "Ingénieur" },
+                      { value: "Ingenieur", label: "Ingenieur" },
                       { value: "DU", label: "DU" },
                     ],
                   },
@@ -363,10 +512,10 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
                     options: [
                       { value: "", label: "Tous les types" },
                       { value: "COMPOSANTE", label: "Composante" },
-                      { value: "DEPARTEMENT", label: "Département" },
+                      { value: "DEPARTEMENT", label: "Departement" },
                       { value: "MENTION", label: "Mention" },
                       { value: "PARCOURS", label: "Parcours" },
-                      { value: "NIVEAU", label: "Niveau / Année" },
+                      { value: "NIVEAU", label: "Niveau / Annee" },
                     ],
                   },
                 ]
@@ -375,6 +524,12 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
           hasActiveFilters={hasActiveFilters}
           onReset={resetFilters}
         />
+
+        {entitesLoading && (
+          <div className="mt-3 text-xs text-slate-500">
+            Chargement du perimetre de recherche...
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
@@ -382,18 +537,21 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
 
         {!loading && activeTab === "responsables" && (
           <div className="space-y-3">
-            {responsables.length === 0 && <div className="text-slate-500">Aucun résultat</div>}
+            {responsables.length === 0 && <div className="text-slate-500">Aucun resultat</div>}
             {responsables.map((item) => (
               <div key={item.id_affectation} className="border border-slate-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <div>
                     <div className="text-slate-900 font-medium">
                       {item.prenom} {item.nom}
                     </div>
                     <div className="text-sm text-indigo-700">{item.role_label}</div>
                     <div className="text-sm text-slate-600">
-                      {item.entite_nom || `Entité ${item.id_entite}`} ({item.type_entite || "N/A"})
+                      {item.entite_nom || `Entite ${item.id_entite}`} ({item.type_entite || "N/A"})
                     </div>
+                    {showWholeBaseResults && (
+                      <div className="text-xs text-slate-500 mt-1">{getYearLabel(item.id_annee)}</div>
+                    )}
                   </div>
                   <div className="text-sm text-slate-500">{item.email_institutionnel || "-"}</div>
                 </div>
@@ -404,17 +562,22 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
 
         {!loading && activeTab === "formations" && (
           <div className="space-y-3">
-            {formations.length === 0 && <div className="text-slate-500">Aucun résultat</div>}
+            {formations.length === 0 && <div className="text-slate-500">Aucun resultat</div>}
             {formations.map((item) => (
               <div key={item.id_entite} className="border border-slate-200 rounded-lg p-4">
                 <div className="text-slate-900 font-medium">
                   {item.nom} <span className="text-slate-500 text-sm">({item.type_entite})</span>
                 </div>
+                {showWholeBaseResults && (
+                  <div className="text-xs text-slate-500 mt-1">{getYearLabel(item.id_annee)}</div>
+                )}
                 <div className="text-sm text-slate-600 mt-1">
                   Responsables:{" "}
                   {item.responsables.length
                     ? item.responsables
-                        .map((resp) => `${resp.prenom} ${resp.nom} (${resp.role_label})`)
+                        .map((responsable) =>
+                          `${responsable.prenom} ${responsable.nom} (${responsable.role_label})`,
+                        )
                         .join(" | ")
                     : "Aucun"}
                 </div>
@@ -425,11 +588,12 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
 
         {!loading && activeTab === "structures" && (
           <div className="space-y-3">
-            {structures.length === 0 && <div className="text-slate-500">Aucun résultat</div>}
+            {structures.length === 0 && <div className="text-slate-500">Aucun resultat</div>}
             {structures.map((item) => {
               const parent = item.id_entite_parent
-                ? yearEntites.find((e) => e.id_entite === item.id_entite_parent)
+                ? searchEntites.find((entite) => entite.id_entite === item.id_entite_parent)
                 : null;
+
               return (
                 <div key={item.id_entite} className="border border-slate-200 rounded-lg p-4">
                   <div className="text-slate-900 font-medium flex items-baseline gap-2">
@@ -440,9 +604,12 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
                       </span>
                     )}
                   </div>
+                  {showWholeBaseResults && (
+                    <div className="text-xs text-slate-500 mt-1">{getYearLabel(item.id_annee)}</div>
+                  )}
                   {parent && (
                     <div className="text-xs text-slate-500 mt-1">
-                      Rattaché à : {parent.nom} ({parent.type_entite})
+                      Rattache a : {parent.nom} ({parent.type_entite})
                     </div>
                   )}
                   {(item.tel_service || item.bureau_service) && (
@@ -469,12 +636,15 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
 
         {!loading && activeTab === "secretariats" && (
           <div className="space-y-3">
-            {secretariats.length === 0 && <div className="text-slate-500">Aucun résultat</div>}
+            {secretariats.length === 0 && <div className="text-slate-500">Aucun resultat</div>}
             {secretariats.map((item) => (
               <div key={item.id_entite} className="border border-slate-200 rounded-lg p-4">
                 <div className="text-slate-900 font-medium">
                   {item.nom} <span className="text-slate-500 text-sm">({item.type_entite})</span>
                 </div>
+                {showWholeBaseResults && (
+                  <div className="text-xs text-slate-500 mt-1">{getYearLabel(item.id_annee)}</div>
+                )}
                 <div className="text-sm text-slate-600 mt-1 flex flex-wrap gap-4">
                   <span className="flex items-center gap-1">
                     <Phone className="w-4 h-4" />
@@ -493,19 +663,19 @@ export function DirectorySearch({ currentYear, authLogin, entites }: DirectorySe
         {!loading && totalPages > 1 && (
           <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200">
             <span className="text-sm text-slate-500">
-              {total} résultat{total > 1 ? "s" : ""} — page {page} / {totalPages}
+              {total} resultat{total > 1 ? "s" : ""} - page {page} / {totalPages}
             </span>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
                 disabled={page <= 1}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <ChevronLeft className="w-4 h-4" />
-                Précédent
+                Precedent
               </button>
               <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
                 disabled={page >= totalPages}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
               >

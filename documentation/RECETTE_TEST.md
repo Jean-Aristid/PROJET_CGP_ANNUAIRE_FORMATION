@@ -1,10 +1,12 @@
 # Recette et Tests
 
-## 1. État actuel des tests automatisés
+Etat du document: avril 2026.
 
-## 1.1 Backend
+## 1. Etat actuel des tests automatises
 
-Tests présents:
+### 1.1 Backend
+
+Tests presents dans le depot:
 
 - `src/app.controller.spec.ts`
 - `src/modules/affectations/affectations.service.spec.ts`
@@ -16,217 +18,235 @@ Tests présents:
 Commandes utiles:
 
 ```bash
-docker compose exec -T backend-nest npm run test
-docker compose exec -T backend-nest npm run test:e2e
-docker compose exec -T backend-nest npm run test:cov
+docker compose exec backend-nest sh -lc "npm run test"
+docker compose exec backend-nest sh -lc "npm run test:e2e"
+docker compose exec backend-nest sh -lc "npm run test:cov"
 ```
 
-## 1.2 Frontend
+### 1.2 Frontend
 
-Il n'existe pas actuellement de suite de tests automatisés dédiée au frontend dans le dépôt. La qualité côté UI repose donc surtout sur:
+Il n'existe pas de suite de tests frontend dediee dans le depot.
 
-- le build TypeScript/Vite
-- la recette manuelle
-- la cohérence des contrats d'API
+La qualite UI repose donc principalement sur:
 
-## 2. Vérifications minimales avant merge
+- le build TypeScript / Vite
+- la verification manuelle
+- la coherence des contrats d'API
+
+## 2. Verification minimale avant merge
 
 ```bash
-docker compose exec -T frontend npm run build
-docker compose exec -T backend-nest npm run build
-docker compose exec -T backend-nest npm run test
+docker compose exec frontend sh -lc "npm run build"
+docker compose exec backend-nest sh -lc "npm run build"
+docker compose exec backend-nest sh -lc "npm run test"
 ```
 
-## 3. Jeux de données
+## 3. Pre-conditions de recette
 
-Pour les recettes, il faut vérifier d'abord:
+Verifier avant la recette:
 
-- qu'une année `EN_COURS` existe
-- qu'au moins une composante, un département et une mention sont présents
+- qu'une annee `EN_COURS` existe
+- qu'au moins une composante, un departement et une mention sont presents
 - qu'au moins un utilisateur avec affectation existe
 - qu'un login de test connu est disponible dans la table `utilisateur`
+- que la stack Docker est bien demarree
 
 ## 4. Recette fonctionnelle par domaine
 
-## 4.1 Authentification mock
+### 4.1 Authentification mock
 
-Scénarios:
+Scenarios:
 
 - se connecter avec un login existant
-- tenter un login inexistant
-- vérifier l'appel `/api/auth/me`
-- vérifier la persistance du login dans le navigateur
+- refuser un login inexistant
+- verifier l'appel `/api/auth/me`
+- verifier la persistance locale du login
 
-## 4.2 Navigation et droits
+### 4.2 Navigation et droits
 
-Scénarios:
+Scenarios:
 
-- vérifier qu'un service central voit tous les écrans de gestion
-- vérifier qu'un rôle plus restreint ne voit pas les écrans interdits
-- vérifier qu'un utilisateur simple garde l'accès à la recherche et au profil
+- verifier qu'un service central voit tous les ecrans de gestion
+- verifier qu'un role plus restreint ne voit pas les ecrans interdits
+- verifier qu'un utilisateur simple garde l'acces a la recherche et au profil
 
-## 4.3 Recherche annuaire
+### 4.3 Recherche annuaire
 
-Scénarios:
+Scenarios generaux:
 
 - rechercher un responsable par nom
-- rechercher une structure par mot-clé
+- rechercher une structure par mot-cle
 - rechercher une formation par mention ou parcours
-- tester un filtre hiérarchique progressif composante vers niveau
-- tester une recherche directe par identifiant disponible
+- tester un filtre hierarchique progressif composante vers niveau
+- tester une recherche directe par identifiant connu
 
-## 4.4 Gestion des responsables
+Scenarios specifiques profils globaux:
 
-Scénarios:
+- verifier qu'un `services-centraux` voit le selecteur de perimetre
+- basculer sur une annee precise puis sur `Toute la base`
+- verifier que l'annee apparait sur les resultats en mode `Toute la base`
 
-- créer un utilisateur
-- lui ajouter une affectation
-- modifier ses coordonnées
-- ajouter ou modifier un contact de rôle
+Scenarios profils non globaux:
+
+- verifier que le selecteur `Toute la base` n'est pas disponible
+- verifier que l'API refuse une recherche sans `yearId`
+
+### 4.4 Gestion des responsables
+
+Scenarios:
+
+- creer un utilisateur
+- modifier ses informations:
+  nom, prenom, email principal, email secondaire, civilite, categorie, telephone, bureau
+- ajouter une affectation
+- modifier une affectation existante:
+  role, structure, dates, coordonnees fonctionnelles
 - supprimer une affectation
-- supprimer un utilisateur autorisé
+- supprimer un utilisateur autorise
 
-## 4.5 Fiches structures
+### 4.5 Fiches structures
 
-Scénarios:
+Scenarios:
 
-- ouvrir le détail d'une structure
-- vérifier la remontée responsables et secrétariat
-- modifier les champs autorisés d'une structure
-- tester la cohérence des filtres hiérarchiques
+- ouvrir le detail d'une structure
+- verifier la remontee responsables et secretariat
+- verifier les sous-structures directes
+- modifier les champs communs d'une structure
+- modifier les champs specifiques selon le type:
+  composante, departement, mention, parcours, niveau
+- verifier qu'un profil non autorise ne peut pas modifier la fiche
 
-## 4.6 Délégations
+### 4.6 Delegations
 
-Scénarios:
+Scenarios:
 
-- créer une délégation valide
-- vérifier sa visibilité pour le délégant
-- révoquer la délégation
-- exporter le CSV côté service central
+- creer une delegation valide
+- verifier que le modal de creation ne propose pas toute la base
+- verifier que les filtres hierarchiques resserrent la liste des structures proposees
+- verifier qu'un profil non central ne peut choisir qu'une structure d'affectation directe
+- verifier les droits disponibles:
+  `view`, `manage_responsables`, `assign_role`, `validate_signalement`, `generate_orgchart`, `import_data`, `full`
+- verifier la visibilite de la delegation creee
+- revoquer la delegation
+- exporter le CSV cote service central
 
-## 4.7 Signalements
+### 4.7 Organigrammes
 
-Scénarios:
+Scenarios:
 
-- créer un signalement
-- le faire prendre en charge
-- le faire escalader
-- le clôturer avec commentaire
-- vérifier la notification associée si applicable
-
-## 4.8 Organigrammes
-
-Scénarios:
-
-- générer un organigramme de structure
+- generer un organigramme de structure
 - basculer en vue personnes
-- filtrer par rôle
-- filtrer par hiérarchie structurelle
+- filtrer par role
+- filtrer par hierarchie structurelle
 - exporter en PDF
 - exporter en JSON ou CSV
-- figer puis défiger un organigramme si connecté en service central
-- ouvrir un organigramme déjà généré depuis la bibliothèque
-- vérifier qu'un rôle non `services-centraux` peut consulter un organigramme généré hors de sa structure
-- vérifier que ce même rôle ne peut pas générer un organigramme hors de sa structure
+- figer puis defiger un organigramme si le profil est service central
+- ouvrir un organigramme deja genere depuis la bibliotheque
 
-Points d'attention:
+### 4.8 Annees universitaires
 
-- la vue personnes doit afficher des personnes uniquement
-- l'affiliation structurelle doit rester visible
-- le mail institutionnel et le mail secondaire doivent apparaître en vue personnes quand ils existent
-- en vue structures, le détail rapide des responsables doit rester limité à nom, prénom et mail institutionnel
-- la chaîne hiérarchique N+1 ne doit pas être cassée par les filtres
-- la bibliothèque doit servir à la consultation élargie sans élargir les droits de génération
+Scenarios:
 
-## 4.9 Années universitaires
+- verifier qu'un `services-centraux` peut changer d'annee
+- verifier qu'un autre profil reste borne a l'annee courante
+- creer une annee vide
+- cloner une annee complete
+- cloner une annee avec structures selectionnees
+- creer une annee sans affectations
+- activer une annee
+- archiver une annee
+- supprimer une annee et verifier le telechargement de la sauvegarde workbook
 
-Scénarios:
+### 4.9 Import / Export
 
-- vérifier qu'un profil `services-centraux` peut lister et changer d'année
-- vérifier qu'un profil non `services-centraux` ne voit que l'année `EN_COURS`
-- vérifier qu'un profil non `services-centraux` ne peut pas changer d'année dans l'interface
-- vérifier qu'un profil non `services-centraux` ne peut pas forcer une autre année via l'API
-- créer une année vide
-- cloner une année complète
-- cloner une année avec structures sélectionnées seulement
-- créer une année sans affectations
-- activer une année
-- archiver une année
-- supprimer une année et vérifier le téléchargement de la sauvegarde workbook
-
-## 4.10 Import / export
-
-### Imports hérités
+Imports herites:
 
 - importer un CSV responsables valide
-- exclure certaines lignes à la confirmation
-- vérifier la création des utilisateurs et affectations
+- exclure certaines lignes a la confirmation
+- verifier la creation des utilisateurs et affectations
 
-### Workbook standardisé
+Workbook standardise:
 
-- télécharger un export standard d'année
-- télécharger un modèle vide
-- modifier un fichier dans Excel
-- recharger le fichier côté UI
+- telecharger un export standard d'annee
+- telecharger un modele vide
+- modifier le fichier dans Excel
+- recharger le fichier cote UI
 - lancer la preview
-- vérifier les compteurs `create`, `update`, `reuse`, `skip`, `warning`, `error`
+- verifier les compteurs `create`, `update`, `reuse`, `skip`, `warning`, `error`
 - confirmer l'import
-- répéter avec un import limité à une structure du fichier
-- répéter avec création de l'année cible
+- repeter avec import limite a une structure
+- repeter avec creation de l'annee cible
 
-## 4.11 Audit
+### 4.10 Signalements
 
-Scénarios:
+Scenarios:
 
-- vérifier qu'une action sensible crée un log
+- creer un signalement
+- le faire prendre en charge
+- le faire escalader
+- le cloturer avec commentaire
+- verifier la notification associee si applicable
+
+### 4.11 Audit
+
+Scenarios:
+
+- verifier qu'une action sensible cree un log
 - filtrer le journal d'audit
 - exporter le CSV d'audit
 
-## 5. Non-régression ciblée après modifications de code
+## 5. Non-regression ciblee
 
-## 5.1 Si modification du schéma Prisma
+### 5.1 Si modification du schema Prisma
 
-Vérifier:
+Verifier:
 
 - migrations ou `db push`
-- seed ou import encore fonctionnels
-- pages frontend utilisant les champs modifiés
-- documentation synchronisée
+- seeds et imports encore fonctionnels
+- pages frontend utilisant les champs modifies
+- documentation synchronisee
 
-## 5.2 Si modification des gardes ou rôles
+### 5.2 Si modification des roles ou gardes
 
-Vérifier:
+Verifier:
 
-- accès à l'écran
-- accès API direct
-- visibilité des actions dans l'UI
-- absence de fuite hors périmètre structure ou année
+- acces a l'ecran
+- acces API direct
+- visibilite des actions dans l'UI
+- absence de fuite hors perimetre structure ou annee
 
-## 5.3 Si modification import/export
+### 5.3 Si modification de la recherche
 
-Vérifier:
+Verifier:
 
-- export d'un fichier lisible
-- réimport du même fichier
-- comportement sur doublons
-- prévisualisation cohérente
-- import limité à une structure
+- chargement sans ecran blanc
+- cohérence de `/roles` cote frontend
+- recherche annee precise
+- recherche `Toute la base` pour profils globaux
+- refus backend sans `yearId` pour profils non autorises
 
-## 5.4 Si modification organigrammes
+### 5.4 Si modification des delegations
 
-Vérifier:
+Verifier:
 
-- génération
-- affichage structure
-- affichage personnes
-- export
-- bibliothèque des organigrammes générés
+- modal de creation lisible
+- perimetre borne correctement
+- correspondance entre droits UI et droits backend
+- impossibilite de deleguer sur une structure non autorisee
+
+### 5.5 Si modification de la gestion responsables / structures
+
+Verifier:
+
+- les modaux affichent bien les champs attendus
+- la sauvegarde persiste tous les nouveaux champs
+- les ecrans restent cohérents apres rechargement
 
 ## 6. Recommandation pratique
 
-En l'absence de tests frontend automatisés, toute évolution significative devrait être validée au minimum par:
+En l'absence de tests frontend automatises, toute evolution significative doit etre validee au minimum par:
 
-1. build frontend
-2. build backend
-3. parcours manuel du domaine modifié
-4. contrôle des permissions avec au moins deux profils utilisateurs
+1. build frontend dans Docker
+2. build backend dans Docker
+3. parcours manuel du domaine modifie
+4. controle des permissions avec au moins deux profils

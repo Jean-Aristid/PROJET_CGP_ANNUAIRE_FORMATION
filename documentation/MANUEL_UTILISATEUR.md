@@ -1,449 +1,399 @@
 # Manuel d'utilisation
 
+Etat du manuel: avril 2026.
+
 ## 1. Objectif
 
-Ce manuel explique comment utiliser l'application CGP au quotidien.
+Ce manuel explique l'usage quotidien de l'application CGP.
 
-Il est destiné:
+Il s'adresse:
 
 - aux utilisateurs qui consultent l'annuaire
-- aux responsables qui gèrent leur périmètre
-- aux services centraux qui pilotent les années, les imports et les organigrammes
+- aux responsables qui gerent leur perimetre
+- aux services centraux qui pilotent les donnees et les annees
 
-Il complète la documentation technique, mais il reste orienté usage métier et parcours écran.
+## 2. Convention pour les captures
 
-## 2. Convention pour les captures d'écran
+Les captures du manuel doivent etre deposees dans `documentation/captures/`.
 
-Les captures utilisateur doivent être rangées dans `documentation/captures/`.
+Convention recommandee:
 
-Convention recommandée:
+- format `png`
+- une capture par ecran ou action cle
+- donnees de demonstration uniquement
+- anonymiser les donnees personnelles si necessaire
 
-- format: `png`
-- largeur homogène si possible
-- une capture par écran ou par action clé
-- masquer les données personnelles réelles si nécessaire
-- utiliser de préférence une année de démonstration stable
-
-Convention de nommage:
-
-- `01-connexion.png`
-- `02-tableau-de-bord.png`
-- `03-recherche-responsables.png`
-- `04-recherche-structures.png`
-- `05-fiche-structure.png`
-- `06-organigramme-structures.png`
-- `07-organigramme-personnes.png`
-- `08-bibliotheque-organigrammes.png`
-- `09-import-export.png`
-- `10-preview-import.png`
-- `11-gestion-annees.png`
-- `12-responsables.png`
-- `13-delegations.png`
-- `14-demandes-roles.png`
-- `15-signalements.png`
-- `16-audit.png`
-- `17-profil.png`
-
-## 3. Démarrage
+## 3. Connexion et session
 
 ### 3.1 Connexion
 
-À l'ouverture de l'application, l'utilisateur arrive sur l'écran de connexion.
+L'application s'ouvre sur un ecran de connexion par login.
 
-En environnement actuel:
+En environnement de developpement:
 
-- la connexion se fait via un login
-- l'application recharge ensuite le profil, l'année et les droits associés
+- l'utilisateur saisit un login
+- l'application recharge ensuite son profil, ses droits et son contexte d'annee
 
-Capture à insérer:
+Capture recommandee:
 
-- fichier: `documentation/captures/01-connexion.png`
-- montrer: l'écran de connexion avec le champ login et le bouton de validation
-- cadrage conseillé: toute la carte de connexion
+- `01-connexion.png`
 
 ### 3.2 Tableau de bord
 
-Après connexion, l'utilisateur arrive sur le tableau de bord.
+Apres connexion, l'utilisateur arrive sur le tableau de bord.
 
 Le tableau de bord permet de:
 
-- voir rapidement les accès disponibles
-- rejoindre les principales fonctionnalités
-- identifier l'année courante active dans la session
+- voir l'annee courante de la session
+- ouvrir rapidement les ecrans principaux
+- verifier les actions accessibles selon le role
 
-Capture à insérer:
+Capture recommandee:
 
-- fichier: `documentation/captures/02-tableau-de-bord.png`
-- montrer: la page d'accueil après connexion avec les cartes principales
-- cadrage conseillé: en-tête + premières cartes du tableau de bord
+- `02-tableau-de-bord.png`
 
-### 3.3 Changer d'année universitaire
+### 3.3 Changement d'annee
 
-Le changement d'année est réservé aux `services centraux`.
+Le changement d'annee est reserve aux `services-centraux`.
 
-Pour les autres rôles:
+Pour les autres roles:
 
-- l'application reste bloquée sur l'année `EN_COURS`
-- l'année est visible dans l'en-tête mais n'est pas modifiable
+- l'annee `EN_COURS` reste visible dans l'entete
+- elle n'est pas modifiable depuis l'interface
 
-Pour les `services centraux`, le sélecteur d'année permet de changer de contexte. Quand l'année change:
+Pour les services centraux:
 
-- les structures affichées changent
-- les droits peuvent changer
-- les résultats de recherche, organigrammes et exports sont recalculés pour cette année
+- le selecteur d'annee change le contexte de travail
+- les structures, responsables, recherches et exports se recalculent pour l'annee choisie
 
-Capture à insérer:
+## 4. Navigation generale
 
-- fichier: `documentation/captures/02-tableau-de-bord.png`
-- montrer: le sélecteur d'année pour un compte services centraux, ou à défaut l'affichage figé de l'année courante pour un autre rôle
-- note: inutile de faire une deuxième capture si le sélecteur est déjà visible sur la capture du tableau de bord
+Selon le role, l'utilisateur peut voir les rubriques suivantes:
 
-## 4. Navigation générale
-
-Le menu de navigation donne accès aux rubriques visibles pour le rôle courant.
-
-Les entrées possibles sont:
-
+- `Tableau de bord`
 - `Rechercher`
 - `Organigramme`
 - `Import / Export`
 - `Responsables`
-- `Structures`
-- `Demandes de rôles`
-- `Délégations`
-- `Années`
+- `Fiches structures`
+- `Demandes de roles`
+- `Delegations`
+- `Annees`
 - `Audit`
 - `Signalements`
-- `Profil`
+- `Ma fiche`
 
-Toutes les rubriques ne sont pas visibles pour tous les rôles.
+Toutes les rubriques ne sont pas visibles pour tous les profils.
 
-Capture à insérer:
+## 5. Recherche avancee
 
-- fichier: `documentation/captures/02-tableau-de-bord.png`
-- montrer: le menu latéral ou la navigation principale
-- cadrage conseillé: partie gauche ou barre de navigation complète
+### 5.1 Principe
 
-## 5. Recherche
+La rubrique `Rechercher` permet une consultation transversale de l'annuaire sans modifier les donnees.
 
-### 5.1 Recherche multi-onglets
+Les onglets disponibles sont:
 
-La rubrique `Rechercher` permet de consulter l'annuaire sans modifier les données.
+- `Responsables`
+- `Formations`
+- `Structures`
+- `Secretariats`
 
-Les onglets disponibles permettent de rechercher:
+Les filtres disponibles peuvent inclure:
 
-- les responsables
-- les formations
-- les structures
-- les secrétariats
+- une recherche texte libre
+- des filtres hierarchiques composante vers niveau
+- un filtre role pour l'onglet responsables
+- un filtre type de structure ou type de diplome selon l'onglet
 
-Les filtres peuvent inclure:
+### 5.2 Recherche sur toute la base
 
-- un texte libre
-- des filtres hiérarchiques
-- des identifiants ou codes
+Pour `services-centraux` et `administrateur`, un selecteur de perimetre permet:
 
-Capture à insérer:
+- soit de travailler sur une annee precise
+- soit de basculer sur `Toute la base`
 
-- fichier: `documentation/captures/03-recherche-responsables.png`
-- montrer: l'onglet responsables avec la barre de recherche et les filtres principaux
-- cadrage conseillé: partie haute de l'écran avec les filtres
+En mode `Toute la base`:
 
-Capture à insérer:
+- la recherche remonte des resultats de plusieurs annees
+- l'annee du resultat est affichee dans les cartes
+- les structures de filtre sont rechargees dynamiquement pour couvrir l'ensemble du perimetre
 
-- fichier: `documentation/captures/04-recherche-structures.png`
-- montrer: l'onglet structures avec un résultat de recherche affiché
-- cadrage conseillé: filtres + tableau ou cartes de résultat
+Pour les autres roles:
 
-### 5.2 Conseils d'usage
+- la recherche reste bornee a leur contexte d'annee autorise
 
-Pour retrouver rapidement une donnée:
+Captures recommandees:
+
+- `03-recherche-responsables.png`
+- `04-recherche-globale-sc.png`
+- `05-recherche-structures.png`
+
+### 5.3 Conseils d'usage
 
 - commencer par une recherche texte simple
-- affiner ensuite avec les filtres hiérarchiques
+- affiner ensuite avec les filtres hierarchiques
 - utiliser les identifiants quand ils sont connus
+- pour les services centraux, limiter d'abord le perimetre a une annee si la recherche est trop large
 
-## 6. Fiche structure
+## 6. Fiches structures
 
-La fiche structure permet de consulter les informations détaillées d'une structure.
+La rubrique `Fiches structures` permet de consulter les informations detaillees d'une structure.
 
-On y retrouve selon le type de structure:
+Les informations visibles peuvent inclure:
 
-- l'identification de la structure
-- le rattachement hiérarchique
-- les coordonnées utiles
-- les responsables
+- le type de structure
+- le rattachement hierarchique
+- les coordonnees du service
+- les responsables et le secretariat
 - les sous-structures directes
-- certaines informations spécifiques au type de structure
+- des champs metier selon le type
 
-Capture à insérer:
+Exemples de champs specifiques:
 
-- fichier: `documentation/captures/05-fiche-structure.png`
-- montrer: une fiche structure complète avec aperçu, rattachement et responsables
-- cadrage conseillé: haut de fiche avec les cartes principales
+- composante:
+  code composante, type de composante, campus, mails, site web
+- departement:
+  code interne
+- mention:
+  type de diplome, diplome de reference, cycle
+- parcours:
+  code parcours
+- niveau:
+  libelle court
+
+### 6.1 Modification des structures
+
+La modification est reservee aux `services-centraux`.
+
+Le modal d'edition permet de modifier tous les champs lies au type courant.
+
+Captures recommandees:
+
+- `06-fiche-structure.png`
+- `07-fiche-structure-edition.png`
 
 ## 7. Organigrammes
 
 ### 7.1 Vue structures
 
-La vue `Structures` affiche l'organisation par entités.
-
-Chaque nœud structure peut montrer:
-
-- le nom de la structure
-- son niveau dans la hiérarchie
-- les responsables liés
-
-Dans le détail rapide des responsables, l'affichage est volontairement simple:
-
-- nom
-- prénom
-- mail institutionnel
-
-Capture à insérer:
-
-- fichier: `documentation/captures/06-organigramme-structures.png`
-- montrer: un organigramme en vue structures avec plusieurs niveaux visibles
-- cadrage conseillé: arbre + panneau de contrôle au-dessus
+La vue `Structures` affiche l'organisation des entites et les responsables associes.
 
 ### 7.2 Vue personnes
 
-La vue `Personnes` affiche uniquement des personnes reliées par la hiérarchie N+1.
+La vue `Personnes` affiche uniquement des personnes reliees par la hierarchie N+1.
 
-La fiche d'une personne peut afficher:
+Les filtres permettent notamment de cibler:
 
-- le rôle
-- l'affiliation structurelle
-- le mail institutionnel
-- le mail secondaire
+- un role
+- une recherche libre
+- une branche hierarchique
 
-Les filtres disponibles permettent notamment de filtrer par:
+### 7.3 Bibliotheque
 
-- recherche libre
-- rôle
-- composante
-- département
-- mention
-- parcours
-- niveau
-
-Capture à insérer:
-
-- fichier: `documentation/captures/07-organigramme-personnes.png`
-- montrer: la vue personnes avec les filtres ouverts et plusieurs nœuds personnes
-- cadrage conseillé: contrôles + début de l'arbre
-
-### 7.3 Bibliothèque des organigrammes générés
-
-La bibliothèque des organigrammes générés permet de:
+La bibliotheque des organigrammes deja generes permet de:
 
 - retrouver un organigramme existant
-- filtrer par type de racine
-- filtrer par statut figé ou non figé
-- limiter le nombre d'éléments visibles
-- ouvrir directement un organigramme en vue structures ou personnes
+- l'ouvrir en vue structures ou personnes
+- filtrer les organigrammes disponibles
 
-Règle importante:
+Captures recommandees:
 
-- certains utilisateurs peuvent consulter des organigrammes déjà générés en dehors de leur périmètre
-- cela ne leur donne pas pour autant le droit d'en générer pour ces structures
-
-Capture à insérer:
-
-- fichier: `documentation/captures/08-bibliotheque-organigrammes.png`
-- montrer: la bibliothèque avec filtres actifs et boutons `Voir en structures` / `Voir en personnes`
-- cadrage conseillé: zone bibliothèque entière
-
-### 7.4 Gel et dégel
-
-Selon le rôle:
-
-- les services centraux peuvent figer et défiger
-- les autres utilisateurs consultent l'état sans disposer de cette action
-
-Si un organigramme identique existe déjà et qu'il n'est pas figé, l'application réutilise l'existant au lieu de créer un doublon.
-
-Capture à insérer:
-
-- fichier: `documentation/captures/08-bibliotheque-organigrammes.png`
-- montrer: au moins un badge `Figé` ou `Disponible`
-- note: pas besoin d'une capture séparée si cette information est déjà visible dans la bibliothèque
+- `08-organigramme-structures.png`
+- `09-organigramme-personnes.png`
+- `10-bibliotheque-organigrammes.png`
 
 ## 8. Gestion des responsables
 
-La rubrique `Responsables` permet, selon les droits, de:
+La rubrique `Responsables` permet, selon les droits:
 
-- consulter les affectations
-- rechercher par nom, login, email ou identifiant
-- filtrer par hiérarchie
-- créer ou modifier certaines affectations
+- de rechercher des personnes par nom, login, email, identifiant ou structure
+- d'ajouter un utilisateur
+- de modifier une fiche personne
+- d'ajouter, modifier ou supprimer une affectation
 
-Capture à insérer:
+### 8.1 Edition de la fiche personne
 
-- fichier: `documentation/captures/12-responsables.png`
-- montrer: écran de gestion des responsables avec filtres hiérarchiques et liste de résultats
-- cadrage conseillé: partie haute avec filtres + première zone de résultats
+Les champs suivants peuvent etre modifies par les profils autorises:
 
-## 9. Import / Export
+- prenom
+- nom
+- email institutionnel
+- email institutionnel secondaire
+- civilite
+- categorie
+- telephone
+- bureau
 
-### 9.1 Objectif
+### 8.2 Edition de l'affectation
 
-La rubrique `Import / Export` permet d'échanger des données avec Excel à partir d'un format standardisé.
+Le modal d'edition d'affectation permet de modifier:
 
-Les usages principaux sont:
+- le role
+- la structure d'affectation
+- la date de debut
+- la date de fin
+- l'email fonctionnel
+- le telephone fonctionnel
+- le bureau fonctionnel
 
-- exporter une année complète
-- exporter une structure précise
-- télécharger un modèle standardisé
-- prévisualiser un import
-- importer tout un fichier ou seulement une structure du fichier
+### 8.3 Lecture de la fiche
 
-Capture à insérer:
+Depuis la liste, l'utilisateur voit aussi:
 
-- fichier: `documentation/captures/09-import-export.png`
-- montrer: l'écran principal Import / Export avec les zones d'export et d'import
-- cadrage conseillé: vue complète de l'écran si possible
+- les affectations de l'annee
+- les roles actifs
+- les informations de contact
 
-### 9.2 Prévisualisation d'import
+Captures recommandees:
 
-Avant confirmation, l'application présente une preview d'import pour:
+- `11-responsables.png`
+- `12-responsables-edition.png`
 
-- identifier les créations
-- identifier les mises à jour
-- signaler les conflits
-- contrôler le périmètre d'import
+## 9. Delegations
 
-Capture à insérer:
+La rubrique `Delegations` permet de deleguer certains droits a un autre utilisateur, selon les regles du role courant.
 
-- fichier: `documentation/captures/10-preview-import.png`
-- montrer: la zone de prévisualisation avec statuts de lignes ou décisions possibles
-- cadrage conseillé: tableau ou liste de preview avec plusieurs cas visibles
+### 9.1 Consultation
 
-### 9.3 Bonnes pratiques
+L'ecran affiche:
 
-Avant un import:
+- une liste des delegations visibles
+- des filtres par statut
+- des filtres hierarchiques dynamiques
+- une recherche par identifiant, delegant, delegataire, structure ou droit
 
-- vérifier l'année cible
-- vérifier le périmètre de structure choisi
-- commencer par la preview
-- confirmer seulement après lecture des conflits
+### 9.2 Creation
 
-## 10. Années universitaires
+Pour les profils de direction autorises:
 
-La rubrique `Années` permet, selon le rôle:
+- le modal de creation propose d'abord des filtres hierarchiques dynamiques
+- la liste du perimetre est volontairement bornee aux structures autorisees
+- pour les profils non centraux, seules les structures d'affectation directe peuvent etre choisies
 
-- de créer une année
-- d'archiver une année
-- d'activer une année
-- de supprimer une année avec export automatique de sauvegarde
-- de cloner toute une année ou seulement certaines structures
+Les droits delegables sont:
 
-Capture à insérer:
+- `Lecture`
+- `Gestion responsables`
+- `Affectation roles`
+- `Validation des signalements`
+- `Generer organigramme`
+- `Import`
+- `Acces complet`
 
-- fichier: `documentation/captures/11-gestion-annees.png`
-- montrer: la page de gestion des années avec le formulaire de création/clonage et la liste des années existantes
-- cadrage conseillé: écran avec les deux zones visibles
+### 9.3 Revocation et export
 
-## 11. Délégations
+- le delegant concerne peut revoquer sa delegation
+- les services centraux peuvent exporter les delegations en CSV
 
-La rubrique `Délégations` permet de déléguer certains droits à un autre utilisateur selon les règles du rôle courant.
+Capture recommandee:
 
-On peut généralement:
+- `13-delegations.png`
 
-- créer une délégation
-- consulter les délégations en cours
-- révoquer une délégation
+## 10. Demandes de roles
 
-Capture à insérer:
+La rubrique `Demandes de roles` permet:
 
-- fichier: `documentation/captures/13-delegations.png`
-- montrer: formulaire de création + liste des délégations existantes
-- cadrage conseillé: partie haute de page avec les filtres et les premières lignes
+- de deposer une demande
+- de suivre son statut
+- de la traiter pour les profils autorises
 
-## 12. Demandes de rôles
+Capture recommandee:
 
-La rubrique `Demandes de rôles` sert à:
+- `14-demandes-roles.png`
 
-- déposer une demande
-- consulter le statut d'une demande
-- traiter une demande si le rôle le permet
+## 11. Import / Export
 
-Capture à insérer:
+La rubrique `Import / Export` permet:
 
-- fichier: `documentation/captures/14-demandes-roles.png`
-- montrer: écran de demandes avec formulaire ou liste des demandes selon le profil utilisé
-- cadrage conseillé: vue la plus complète possible
+- d'exporter une annee complete
+- d'exporter une structure et son sous-arbre
+- de telecharger un modele standardise
+- de lancer une previsualisation d'import
+- d'importer tout un fichier ou un perimetre cible
+
+Bonnes pratiques:
+
+- verifier l'annee cible
+- commencer par une preview
+- relire les alertes avant confirmation
+
+Captures recommandees:
+
+- `15-import-export.png`
+- `16-preview-import.png`
+
+## 12. Annees universitaires
+
+La rubrique `Annees` est reservee aux services centraux.
+
+Elle permet:
+
+- de creer une annee vide
+- de cloner une annee source
+- de choisir un clonage complet ou selectif
+- de copier ou non les affectations
+- d'activer ou d'archiver une annee
+- de supprimer une annee avec sauvegarde metier
+
+Capture recommandee:
+
+- `17-gestion-annees.png`
 
 ## 13. Signalements
 
-La rubrique `Signalements` permet de déclarer un problème ou de suivre son traitement.
+La rubrique `Signalements` permet:
 
-Les usages typiques sont:
+- de creer un signalement
+- de filtrer les signalements visibles
+- de suivre leur prise en charge et leur cloture
 
-- créer un signalement
-- filtrer les signalements
-- suivre leur statut
+Capture recommandee:
 
-Capture à insérer:
-
-- fichier: `documentation/captures/15-signalements.png`
-- montrer: écran des signalements avec formulaire ou liste filtrée
-- cadrage conseillé: zone utile la plus représentative
+- `18-signalements.png`
 
 ## 14. Audit
 
-La rubrique `Audit` est réservée aux profils autorisés.
+La rubrique `Audit` est reservee aux profils autorises.
 
 Elle permet de:
 
 - consulter les traces
-- filtrer par action, période ou structure
-- exporter les journaux si le rôle le permet
+- filtrer les actions
+- exporter le journal
 
-Capture à insérer:
+Capture recommandee:
 
-- fichier: `documentation/captures/16-audit.png`
-- montrer: l'écran d'audit avec les filtres et les premières lignes du journal
-- cadrage conseillé: filtres + tableau
+- `19-audit.png`
 
 ## 15. Profil utilisateur
 
-La rubrique `Profil` permet à l'utilisateur de consulter et, selon les champs disponibles, de mettre à jour une partie de ses informations.
+La rubrique `Ma fiche` permet a l'utilisateur de consulter son profil et, selon les droits exposes par l'ecran, de modifier certains champs personnels.
 
-Capture à insérer:
+Capture recommandee:
 
-- fichier: `documentation/captures/17-profil.png`
-- montrer: la page profil avec les informations principales
-- cadrage conseillé: la carte profil complète
+- `20-profil.png`
 
-## 16. Checklist de captures à produire
+## 16. Checklist des captures
 
-Pour compléter ce manuel, il faut au minimum les captures suivantes:
+Pour un manuel complet, produire idealement:
 
 1. `01-connexion.png`
 2. `02-tableau-de-bord.png`
 3. `03-recherche-responsables.png`
-4. `04-recherche-structures.png`
-5. `05-fiche-structure.png`
-6. `06-organigramme-structures.png`
-7. `07-organigramme-personnes.png`
-8. `08-bibliotheque-organigrammes.png`
-9. `09-import-export.png`
-10. `10-preview-import.png`
-11. `11-gestion-annees.png`
-12. `12-responsables.png`
+4. `04-recherche-globale-sc.png`
+5. `05-recherche-structures.png`
+6. `06-fiche-structure.png`
+7. `07-fiche-structure-edition.png`
+8. `08-organigramme-structures.png`
+9. `09-organigramme-personnes.png`
+10. `10-bibliotheque-organigrammes.png`
+11. `11-responsables.png`
+12. `12-responsables-edition.png`
 13. `13-delegations.png`
 14. `14-demandes-roles.png`
-15. `15-signalements.png`
-16. `16-audit.png`
-17. `17-profil.png`
-
-## 17. Recommandations de prise de capture
-
-Pour que le manuel reste cohérent:
-
-- utiliser la même année universitaire sur toutes les captures si possible
-- utiliser un jeu de données lisible et non confidentiel
-- éviter les captures trop zoomées
-- montrer les filtres quand ils expliquent le fonctionnement
-- privilégier les écrans avec un exemple de résultat réel
+15. `15-import-export.png`
+16. `16-preview-import.png`
+17. `17-gestion-annees.png`
+18. `18-signalements.png`
+19. `19-audit.png`
+20. `20-profil.png`

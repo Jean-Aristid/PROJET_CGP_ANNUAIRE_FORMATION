@@ -1,5 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import type { Prisma, entite_type } from '@prisma/client';
+import { ROLE_IDS } from '../../auth/roles.constants';
+import type { CurrentUser } from '../../common/types/current-user';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { normalizePagination } from '../../common/utils/pagination';
 import { SearchQueryDto } from './dto/search-query.dto';
@@ -7,6 +9,24 @@ import { SearchQueryDto } from './dto/search-query.dto';
 @Injectable()
 export class SearchService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private canSearchWholeBase(user: CurrentUser): boolean {
+    return user.affectations.some(
+      (affectation) =>
+        affectation.roleId === ROLE_IDS.SERVICES_CENTRAUX ||
+        affectation.roleId === ROLE_IDS.ADMINISTRATEUR,
+    );
+  }
+
+  private assertYearScope(user: CurrentUser, query: SearchQueryDto) {
+    if (query.yearId || this.canSearchWholeBase(user)) {
+      return;
+    }
+
+    throw new ForbiddenException(
+      'La recherche sur toute la base est reservee aux services centraux.',
+    );
+  }
 
   private parseNumericId(raw?: string): bigint | null {
     const value = raw?.trim();
@@ -31,7 +51,9 @@ export class SearchService {
     return ids.length > 0 ? ids : null;
   }
 
-  async responsables(query: SearchQueryDto) {
+  async responsables(user: CurrentUser, query: SearchQueryDto) {
+    this.assertYearScope(user, query);
+
     const { page, pageSize, skip } = normalizePagination({
       page: query.page,
       pageSize: query.pageSize,
@@ -110,7 +132,9 @@ export class SearchService {
     };
   }
 
-  async formations(query: SearchQueryDto) {
+  async formations(user: CurrentUser, query: SearchQueryDto) {
+    this.assertYearScope(user, query);
+
     const { page, pageSize, skip } = normalizePagination({
       page: query.page,
       pageSize: query.pageSize,
@@ -184,7 +208,9 @@ export class SearchService {
     };
   }
 
-  async structures(query: SearchQueryDto) {
+  async structures(user: CurrentUser, query: SearchQueryDto) {
+    this.assertYearScope(user, query);
+
     const { page, pageSize, skip } = normalizePagination({
       page: query.page,
       pageSize: query.pageSize,
@@ -249,7 +275,9 @@ export class SearchService {
     };
   }
 
-  async secretariats(query: SearchQueryDto) {
+  async secretariats(user: CurrentUser, query: SearchQueryDto) {
+    this.assertYearScope(user, query);
+
     const { page, pageSize, skip } = normalizePagination({
       page: query.page,
       pageSize: query.pageSize,

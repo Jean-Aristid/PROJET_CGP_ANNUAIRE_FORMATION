@@ -1,15 +1,21 @@
 # CGP - Annuaire Formation
 
-Application de gestion d'annuaire universitaire orientée structures, responsables, années académiques et organigrammes.
+Application web de gestion d'annuaire universitaire orientee structures, responsables, annees universitaires et organigrammes.
 
-Le projet permet notamment:
+Etat de la documentation: avril 2026.
 
-- la recherche de responsables, structures, formations et secrétariats
-- la gestion des utilisateurs, affectations, contacts de rôle et délégations
-- la gestion des structures académiques par année universitaire
-- la génération d'organigrammes de structures et de personnes
-- l'import/export de données, y compris via un classeur Excel standardisé réimportable
-- la gestion des signalements, notifications et du journal d'audit
+## Vue d'ensemble
+
+Le projet couvre notamment:
+
+- la recherche avancee de responsables, formations, structures et secretariats
+- la recherche sur toute la base pour les profils globaux autorises
+- la gestion des utilisateurs, affectations, contacts fonctionnels et delegations
+- la gestion des fiches structures avec champs specifiques par type
+- la gestion des annees universitaires
+- la generation, la consultation et l'export d'organigrammes
+- l'import et l'export de donnees metier
+- la gestion des signalements, notifications et journaux d'audit
 
 ## Stack
 
@@ -17,13 +23,123 @@ Le projet permet notamment:
 - `backend-nest/`: NestJS + Prisma + TypeScript
 - `db`: PostgreSQL 16
 - `docker-compose.yml`: orchestration locale
-- `script/db/init/`: scripts SQL d'initialisation de la base
+
+## Regle de travail
+
+Le projet se travaille en priorite via Docker.
+
+En pratique:
+
+- ne pas compter sur `npm` en local sur la machine hote
+- lancer le frontend, le backend et la base via `docker compose`
+- executer les commandes de build, test et maintenance dans les conteneurs
+
+## Demarrage rapide
+
+```bash
+docker compose up -d --build
+docker compose ps
+docker compose logs -f backend-nest
+```
+
+Services exposes par defaut:
+
+- frontend: `http://localhost:5173`
+- backend: `http://localhost:3001/api/health`
+- postgres: `localhost:5433`
+
+Etat attendu:
+
+- `db`: `healthy`
+- `backend-nest`: `healthy`
+- `frontend`: demarre
+
+## Commandes utiles
+
+Voir l'etat des conteneurs:
+
+```bash
+docker compose ps
+```
+
+Voir les logs:
+
+```bash
+docker compose logs -f
+docker compose logs -f backend-nest
+docker compose logs -f frontend
+docker compose logs -f db
+```
+
+Verifier les builds une fois la stack demarree:
+
+```bash
+docker compose exec frontend sh -lc "npm run build"
+docker compose exec backend-nest sh -lc "npm run build"
+```
+
+Lancer les tests backend:
+
+```bash
+docker compose exec backend-nest sh -lc "npm run test"
+docker compose exec backend-nest sh -lc "npm run test:e2e"
+```
+
+Arreter la stack:
+
+```bash
+docker compose down
+```
+
+Reinitialiser completement la base locale:
+
+```bash
+docker compose down -v
+docker compose up -d --build
+```
+
+## Fonctionnalites cles
+
+### Recherche
+
+- ecran de recherche multi-onglets: responsables, formations, structures, secretariats
+- filtres hierarchiques dynamiques composante vers niveau
+- recherche globale sur une annee ou sur toute la base pour `services-centraux` et `administrateur`
+- nettoyage des anciens parametres `ds_*` et `dg_*` sur les ecrans sensibles
+
+### Gestion des responsables
+
+- edition des informations personne: email principal, email secondaire, civilite, categorie, telephone, bureau
+- ajout et suppression d'affectations selon les droits
+- edition d'une affectation existante: role, structure d'affectation, dates, coordonnees fonctionnelles
+
+### Fiches structures
+
+- consultation detaillee des composantes, departements, mentions, parcours et niveaux
+- edition reservee aux services centraux
+- champs metier couverts selon le type:
+  code composante, type composante, campus, mails, site web, code interne, type diplome, cycle, code parcours, libelle court
+
+### Delegations
+
+- creation reservee aux profils de direction autorises
+- choix du perimetre assiste par filtres hierarchiques dynamiques
+- pour les profils non centraux, seules les structures d'affectation directe peuvent etre choisies a la creation
+- droits supportes:
+  `view`, `manage_responsables`, `assign_role`, `validate_signalement`, `generate_orgchart`, `import_data`, `full`
+- export CSV reserve aux services centraux
+
+### Annees, imports et organigrammes
+
+- changement d'annee reserve aux services centraux
+- import et export metier via workbook standardise
+- organigrammes en vue structures et personnes, avec exports et bibliotheque
 
 ## Documentation
 
-La documentation détaillée se trouve dans [documentation/README.md](./documentation/README.md).
+La documentation detaillee se trouve dans [documentation/README.md](./documentation/README.md).
 
-Points d'entrée principaux:
+Points d'entree principaux:
 
 - [documentation/MANUEL_UTILISATEUR.md](./documentation/MANUEL_UTILISATEUR.md)
 - [documentation/MANUEL_TECHNIQUE.md](./documentation/MANUEL_TECHNIQUE.md)
@@ -35,69 +151,41 @@ Points d'entrée principaux:
 
 ```text
 Navigateur
-  -> frontend React/Vite
+  -> frontend React / Vite
   -> API NestJS (/api)
   -> Prisma
   -> PostgreSQL
 ```
 
-Organisation du dépôt:
+Organisation du depot:
 
 ```text
 .
-├── backend-nest/
-├── frontend/
-├── files/
-├── script/
-├── documentation/
-└── docker-compose.yml
+|-- backend-nest/
+|-- frontend/
+|-- documentation/
+|-- files/
+|-- script/
+`-- docker-compose.yml
 ```
 
-## Démarrage rapide avec Docker
+## Authentification en developpement
 
-Le mode recommandé pour travailler sur le projet est Docker.
+Le projet tourne par defaut avec `AUTH_MODE=mock`.
 
-### Lancer la stack
+Concretement:
 
-```bash
-docker compose up -d --build
-docker compose ps
-docker compose logs -f backend-nest
-```
+- le frontend stocke le login en local
+- chaque appel API envoie `x-user-login`
+- le backend reconstruit l'utilisateur courant a partir de la base
 
-Services exposés par défaut:
+Il faut donc utiliser un login reellement present dans la table `utilisateur`.
 
-- frontend: `http://localhost:5173`
-- backend: `http://localhost:3001/api/health`
-- postgres: `localhost:5433`
-
-État attendu:
-
-- `db`: `healthy`
-- `backend-nest`: `healthy`
-- `frontend`: démarré
-
-### Vérifier l'auth mock
+Exemple de verification:
 
 ```bash
 curl -i -H "x-user-login: alain.rousseau" http://localhost:5173/api/auth/me
 ```
-
-Réponse attendue: `HTTP/1.1 200 OK`
-
-## Fonctionnalités clés déjà en place
-
-- gestion des années avec création, activation, archivage, clonage complet ou sélectif et suppression avec sauvegarde standardisée
-- changement d'année réservé aux services centraux, les autres profils restant sur l'année `EN_COURS`
-- organigrammes en vue `structures` et `personnes`, avec filtres, exports et bibliothèque des organigrammes déjà générés
-- vue personnes avec affiliation, mail institutionnel et mail secondaire
-- vue structures avec responsables affichés de manière simplifiée: nom, prénom et mail institutionnel
-- consultation des organigrammes générés possible au-delà du périmètre de génération, pour faciliter la recherche de contacts
-- génération d'organigrammes limitée au périmètre structurel du rôle, sauf pour les services centraux
-- filtres hiérarchiques dynamiques sur plusieurs écrans
-- import/export standardisé via classeur Excel XML `CGP_STANDARD_V1`
-- import ciblé possible sur une structure précise
-- prévisualisation des conflits avant import
 
 ## Variables d'environnement
 
@@ -114,142 +202,11 @@ Variables principales:
 - `AUTH_MODE`
 - `CORS_ORIGINS`
 
-## Commandes utiles
+## Contribution
 
-### Voir l'état des conteneurs
+Avant de livrer une evolution:
 
-```bash
-docker compose ps
-```
-
-### Voir les logs
-
-```bash
-docker compose logs -f
-docker compose logs -f backend-nest
-docker compose logs -f frontend
-docker compose logs -f db
-```
-
-### Arrêter la stack
-
-```bash
-docker compose down
-```
-
-### Réinitialiser complètement la base locale
-
-```bash
-docker compose down -v
-docker compose up -d --build
-```
-
-### Lancer les builds de vérification
-
-```bash
-docker compose exec -T frontend npm run build
-docker compose exec -T backend-nest npm run build
-```
-
-### Lancer les tests backend
-
-```bash
-docker compose exec -T backend-nest npm run test
-docker compose exec -T backend-nest npm run test:e2e
-```
-
-## Authentification en développement
-
-Le projet tourne par défaut en mode `AUTH_MODE=mock`.
-
-Concrètement:
-
-- le frontend conserve le login en local
-- chaque appel API envoie `x-user-login`
-- le backend reconstruit l'utilisateur courant à partir de la base
-
-Il faut donc utiliser un login réellement présent dans la table `utilisateur`.
-
-## Lancement hors Docker
-
-Possible, mais non recommandé pour le quotidien tant que l'équipe travaille principalement via Docker.
-
-### Backend
-
-```bash
-cd backend-nest
-npm install
-npx prisma generate
-npm run start:dev
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-En local, le frontend appelle `http://localhost:3001` via le proxy `/api`.
-
-## Base de données et seeds
-
-Le projet combine:
-
-- une initialisation SQL via `script/db/init/`
-- des scripts Prisma dans `backend-nest/prisma/`
-
-Scripts utiles:
-
-- `npm run seed`
-- `npm run seed:csv`
-- `npm run db:reset`
-- `npm run migrate:new`
-- `npm run migrate:deploy`
-
-Voir [documentation/EXPLOITATION_MAINTENANCE.md](./documentation/EXPLOITATION_MAINTENANCE.md) pour le détail.
-
-## Dépannage rapide
-
-### Docker n'est pas accessible
-
-```bash
-sudo systemctl enable --now docker
-sudo systemctl restart docker
-```
-
-### Problème de permission sur le socket Docker
-
-```bash
-getent group docker || sudo groupadd docker
-sudo usermod -aG docker $USER
-newgrp docker
-```
-
-### Conflit de port Postgres
-
-Modifier `POSTGRES_PORT` dans `.env`, ou lancer par exemple:
-
-```bash
-POSTGRES_PORT=5434 docker compose up -d --build
-```
-
-### Le frontend ne compile plus après changement de dépendances
-
-Le volume `frontend-node-modules` peut être obsolète:
-
-```bash
-docker compose down
-docker volume rm annuaire-formation_frontend-node-modules
-docker compose up -d --build frontend
-```
-
-## Pour les futurs contributeurs
-
-Avant de livrer une évolution:
-
-- mettre à jour la documentation si le comportement change
-- vérifier les builds frontend et backend
-- vérifier les droits d'accès si une route ou un écran change
-- valider les parcours impactés en recette manuelle
+- mettre a jour la documentation si le comportement change
+- verifier les builds Docker
+- verifier les droits d'acces si une route ou un ecran change
+- valider les parcours impactes en recette manuelle
