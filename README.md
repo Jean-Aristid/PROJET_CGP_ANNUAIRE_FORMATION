@@ -30,17 +30,128 @@ Fonctionnalites principales exposees par l'application :
 | Base de donnees | PostgreSQL 16 |
 | Orchestration | Docker Compose |
 
+## Documentation
+
+La documentation projet est centralisee dans `documentation/Manuels/` :
+
+| Document | Lien |
+|---|---|
+| Manuel complet PDF a suivre en PRIORITÉ | [documentation/Manuels/Manuel_complet_installation_utilisation.pdf](documentation/Manuels/Manuel_complet_installation_utilisation.pdf) |
+| Installation | [documentation/Manuels/INSTALLATION.md](documentation/Manuels/INSTALLATION.md) |
+| Endpoints API | [documentation/Manuels/API_ENDPOINTS.md](documentation/Manuels/API_ENDPOINTS.md) |
+| Tests | [documentation/Manuels/TESTS.md](documentation/Manuels/TESTS.md) |
+| Maintenance | [documentation/Manuels/MAINTENANCE.md](documentation/Manuels/MAINTENANCE.md) |
+| Maintenance base de donnees | [documentation/Manuels/MAINTENANCE_BASE_DE_DONNEES.md](documentation/Manuels/MAINTENANCE_BASE_DE_DONNEES.md) |
+| Manuel utilisateur | [documentation/Manuels/MANUEL_UTILISATEUR.md](documentation/Manuels/MANUEL_UTILISATEUR.md) |
+
+
 ## Arborescence utile
 
 ```text
 PROJET_CGP_ANNUAIRE_FORMATION/
+├── .vscode/
 ├── backend-nest/
-├── frontend/
-├── documentation/
-│   └── Manuels/
+│   ├── dist/
+│   │   ├── prisma/
+│   │   └── src/
+│   │       ├── auth/
+│   │       ├── common/
+│   │       │   ├── decorators/
+│   │       │   ├── filters/
+│   │       │   ├── guards/
+│   │       │   ├── interceptors/
+│   │       │   ├── prisma/
+│   │       │   ├── types/
+│   │       │   └── utils/
+│   │       └── modules/
+│   │           ├── affectations/
+│   │           │   └── dto/
+│   │           ├── annees/
+│   │           │   └── dto/
+│   │           ├── audit/
+│   │           │   └── dto/
+│   │           ├── dashboard/
+│   │           │   └── dto/
+│   │           ├── delegations/
+│   │           │   └── dto/
+│   │           ├── demandes/
+│   │           │   └── dto/
+│   │           ├── entites/
+│   │           │   └── dto/
+│   │           ├── exports/
+│   │           │   └── dto/
+│   │           ├── imports/
+│   │           │   └── dto/
+│   │           ├── notifications/
+│   │           ├── organigrammes/
+│   │           │   └── dto/
+│   │           ├── roles/
+│   │           │   └── dto/
+│   │           ├── search/
+│   │           │   └── dto/
+│   │           └── users/
+│   │               └── dto/
+│   ├── files/
+│   ├── node_modules/
+│   ├── prisma/
+│   ├── src/
+│   │   ├── auth/
+│   │   ├── common/
+│   │   │   ├── decorators/
+│   │   │   ├── filters/
+│   │   │   ├── guards/
+│   │   │   ├── interceptors/
+│   │   │   ├── prisma/
+│   │   │   ├── types/
+│   │   │   └── utils/
+│   │   └── modules/
+│   │       ├── affectations/
+│   │       │   └── dto/
+│   │       ├── annees/
+│   │       │   └── dto/
+│   │       ├── audit/
+│   │       │   └── dto/
+│   │       ├── dashboard/
+│   │       │   └── dto/
+│   │       ├── delegations/
+│   │       │   └── dto/
+│   │       ├── demandes/
+│   │       │   └── dto/
+│   │       ├── entites/
+│   │       │   └── dto/
+│   │       ├── exports/
+│   │       │   └── dto/
+│   │       ├── imports/
+│   │       │   └── dto/
+│   │       ├── notifications/
+│   │       ├── organigrammes/
+│   │       │   └── dto/
+│   │       ├── roles/
+│   │       │   └── dto/
+│   │       ├── search/
+│   │       │   └── dto/
+│   │       └── users/
+│   │           └── dto/
+│   └── test/
 ├── db-file-csv/
+├── documentation/
+│   ├── Manuels/
+│   └── Rapports_Sprints/
 ├── files/
+│   └── assets/
+├── frontend/
+│   ├── dist/
+│   │   └── assets/
+│   ├── node_modules/
+│   └── src/
+│       ├── components/
+│       │   └── ui/
+│       ├── lib/
+│       └── styles/
 └── script/
+    ├── __pycache__/
+    └── db/
+        └── init/
 ```
 
 ## Demarrage rapide avec Docker
@@ -48,8 +159,7 @@ PROJET_CGP_ANNUAIRE_FORMATION/
 ```bash
 git clone <url-du-depot>
 cd PROJET_CGP_ANNUAIRE_FORMATION
-cp .env.example .env
-docker compose up --build
+docker compose up -d --build
 ```
 
 Services disponibles :
@@ -149,20 +259,6 @@ Pour regenerer le seed annuaire a partir des CSV :
 ```bash
 python script/seed_annuaire.py
 ```
-
-## Documentation
-
-La documentation projet est centralisee dans `documentation/Manuels/` :
-
-| Document | Lien |
-|---|---|
-| Manuel complet PDF | [documentation/Manuels/Manuel_complet_installation_utilisation.pdf](documentation/Manuels/Manuel_complet_installation_utilisation.pdf) |
-| Installation | [documentation/Manuels/INSTALLATION.md](documentation/Manuels/INSTALLATION.md) |
-| Endpoints API | [documentation/Manuels/API_ENDPOINTS.md](documentation/Manuels/API_ENDPOINTS.md) |
-| Tests | [documentation/Manuels/TESTS.md](documentation/Manuels/TESTS.md) |
-| Maintenance | [documentation/Manuels/MAINTENANCE.md](documentation/Manuels/MAINTENANCE.md) |
-| Maintenance base de donnees | [documentation/Manuels/MAINTENANCE_BASE_DE_DONNEES.md](documentation/Manuels/MAINTENANCE_BASE_DE_DONNEES.md) |
-| Manuel utilisateur | [documentation/Manuels/MANUEL_UTILISATEUR.md](documentation/Manuels/MANUEL_UTILISATEUR.md) |
 
 ## Verification rapide
 
