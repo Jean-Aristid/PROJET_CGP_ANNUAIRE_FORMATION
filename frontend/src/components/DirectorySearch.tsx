@@ -8,6 +8,7 @@ import {
   EMPTY_HIERARCHY_FILTERS,
   HIERARCHY_LEVELS,
   type HierarchyFilters,
+  formatHierarchyOptionLabel,
   getDeepestSelectedEntiteId,
   getDescendantEntiteIds,
   getHierarchyOptions,
@@ -446,10 +447,7 @@ export function DirectorySearch({
                   { value: "", label: HIERARCHY_EMPTY_LABELS[level.key] },
                   ...options.map((entite) => ({
                     value: String(entite.id_entite),
-                    label:
-                      entite.type_entite === "COMPOSANTE" && entite.code_composante
-                        ? `${entite.nom} (${entite.code_composante})`
-                        : entite.nom,
+                    label: formatHierarchyOptionLabel(entite, searchEntites),
                   })),
                 ],
               };

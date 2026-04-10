@@ -17,6 +17,7 @@ import {
   EMPTY_HIERARCHY_FILTERS,
   HIERARCHY_LEVELS,
   type HierarchyFilters,
+  formatHierarchyOptionLabel,
   getDescendantEntiteIds,
   getFilteredEntites,
   getHierarchyOptions,
@@ -462,9 +463,7 @@ export function Delegations({
                         <option value="">{HIERARCHY_EMPTY_LABELS[level.key]}</option>
                         {options.map((entite) => (
                           <option key={entite.id_entite} value={entite.id_entite}>
-                            {entite.type_entite === "COMPOSANTE" && entite.code_composante
-                              ? `${entite.nom} (${entite.code_composante})`
-                              : entite.nom}
+                            {formatHierarchyOptionLabel(entite, createAllowedEntites)}
                           </option>
                         ))}
                       </select>
@@ -634,16 +633,13 @@ export function Delegations({
                   setHierarchyFilters((prev) => updateHierarchyFilters(prev, level.key, value)),
                 disabled: options.length === 0,
                 options: [
-                  { value: "", label: HIERARCHY_EMPTY_LABELS[level.key] },
-                  ...options.map((entite) => ({
-                    value: String(entite.id_entite),
-                    label:
-                      entite.type_entite === "COMPOSANTE" && entite.code_composante
-                        ? `${entite.nom} (${entite.code_composante})`
-                        : entite.nom,
-                  })),
-                ],
-              };
+                { value: "", label: HIERARCHY_EMPTY_LABELS[level.key] },
+                ...options.map((entite) => ({
+                  value: String(entite.id_entite),
+                  label: formatHierarchyOptionLabel(entite, yearEntites),
+                })),
+              ],
+            };
             }),
           ]}
           hasActiveFilters={hasActiveFilters}

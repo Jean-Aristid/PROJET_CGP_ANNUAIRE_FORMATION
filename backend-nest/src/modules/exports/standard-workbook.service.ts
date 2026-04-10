@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { getAffectationDisplayLabel } from '../../common/utils/affectation-label.utils';
 
 export const STANDARD_WORKBOOK_VERSION = 'CGP_STANDARD_V2';
 export const STANDARD_WORKBOOK_SUPPORTED_VERSIONS = [
@@ -378,7 +379,7 @@ export class StandardWorkbookService {
             : '',
           user_login: item.utilisateur.login,
           id_role: item.id_role,
-          role_label: item.role?.libelle ?? '',
+          role_label: getAffectationDisplayLabel(item),
           source_id_entite: String(item.id_entite),
           source_entite_name:
             this.getStructureDisplayName(structureById.get(String(item.id_entite))) ?? '',

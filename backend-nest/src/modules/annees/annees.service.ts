@@ -143,6 +143,8 @@ export class AnneesService {
               id_annee: year.id_annee,
               date_debut: sourceAffectation.date_debut,
               date_fin: sourceAffectation.date_fin,
+              libelle_source: sourceAffectation.libelle_source,
+              source_key: sourceAffectation.source_key,
             },
           });
 

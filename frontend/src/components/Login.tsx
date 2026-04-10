@@ -9,27 +9,23 @@ interface LoginProps {
 
 const demoLogins = [
   { label: "Services centraux", login: "sc.admin" },
-  { label: "Administrateur", login: "test.administrateur.2" },
-  { label: "Directeur de composante", login: "test.directeur-composante" },
-  { label: "Directeur administratif", login: "test.directeur-administratif" },
-  { label: "Directeur administratif adjoint", login: "test.directeur-administratif-adjoint" },
-  { label: "Directeur de département", login: "test.directeur-departement" },
-  { label: "Vice-président de département", login: "test.vice-president-departement" },
-  { label: "Directeur adjoint licence", login: "test.directeur-adjoint-licence" },
-  { label: "Responsable service pédagogique", login: "test.responsable-service-pedagogique" },
-  { label: "Responsable adjoint service pédagogique", login: "test.responsable-adjoint-service-pedagogique" },
-  { label: "Directeur de mention", login: "test.directeur-mention" },
-  { label: "Directeur de spécialité", login: "test.directeur-specialite" },
-  { label: "Responsable de formation", login: "test.responsable-formation" },
-  { label: "Responsable d'année", login: "test.responsable-annee" },
-  { label: "Directeur des études", login: "test.directeur-etudes" },
-  { label: "Responsable qualité", login: "test.responsable-qualite" },
-  { label: "Responsable international", login: "test.responsable-international" },
-  { label: "Référent commun", login: "test.referent-commun" },
-  { label: "Directeur adjoint d'école", login: "test.directeur-adjoint-ecole" },
-  { label: "Secrétariat pédagogique", login: "test.secretariat-pedagogique" },
-  { label: "Utilisateur simple", login: "test.utilisateur-simple" },
-  { label: "Lecture seule", login: "test.lecture-seule" },
+  { label: "Administrateur", login: "dsi.tech" },
+  { label: "Directeur de composante", login: "bruno.manil" },
+  { label: "Directeur administratif", login: "valerie.mottin" },
+  { label: "Directeur de département", login: "sophie.toulouse" },
+  { label: "Vice-président de département", login: "thierry.hamon" },
+  { label: "Directeur adjoint licence", login: "valerie.boucard" },
+  { label: "Responsable service pédagogique", login: "elisabeth.christiny" },
+  { label: "Responsable adjoint service pédagogique", login: "loredana.yacoubi" },
+  { label: "Directeur de mention", login: "pierre.fouilhoux" },
+  { label: "Directeur de spécialité", login: "sebastien.guerif" },
+  { label: "Responsable de formation", login: "julien.ducoulombier" },
+  { label: "Responsable d'année", login: "marc.cesar" },
+  { label: "Directeur des études", login: "elodie.david" },
+  { label: "Responsable qualité", login: "sylvie.borne" },
+  { label: "Référent commun", login: "sebastien.guerif" },
+  { label: "Directeur adjoint d'école", login: "lucas.letocart" },
+  { label: "Secrétariat pédagogique", login: "aline.dacheux" },
 ];
 
 export function Login({ onLogin, error, loading }: LoginProps) {
@@ -58,7 +54,7 @@ export function Login({ onLogin, error, loading }: LoginProps) {
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
             Le CAS réel n'est pas encore branché ici. Cet écran utilise le mode mock du backend
-            avec des logins de test présents en base.
+            avec des logins réellement présents dans la base seedée.
           </div>
 
           <div>
@@ -90,7 +86,7 @@ export function Login({ onLogin, error, loading }: LoginProps) {
           <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
             <p className="text-sm text-indigo-900 font-medium mb-1">Logins de test</p>
             <p className="text-xs text-indigo-800 mb-2">
-              Ces logins sont alignés sur le seed Docker actuel. Si le login n'existe pas en base, la connexion renvoie 401.
+              Cette liste est alignée sur la base actuelle. Les anciens logins `test.*` ne sont plus seedés.
             </p>
             <div className="grid grid-cols-1 gap-2">
               {demoLogins.map((demo) => (

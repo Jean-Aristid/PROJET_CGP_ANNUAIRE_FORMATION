@@ -308,7 +308,7 @@ export function getWorkbookSourceScopes(workbook: StandardWorkbookPayload): Work
   return entites
     .map((entite) => ({
       id: String(entite.id_entite),
-      label: `#${entite.id_entite} — ${buildWorkbookEntitePath(entite.id_entite, entiteMap)} (${entite.type_entite})`,
+      label: `${buildWorkbookEntitePath(entite.id_entite, entiteMap)} (${entite.type_entite})`,
       type: entite.type_entite,
     }))
     .sort((left, right) => left.label.localeCompare(right.label, "fr", { sensitivity: "base" }));

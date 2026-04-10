@@ -7,6 +7,7 @@ import type { CreateUserDto } from './dto/create-user.dto';
 import type { UpdateUserDto } from './dto/update-user.dto';
 import type { CurrentUser } from '../../common/types/current-user';
 import { ROLE_IDS } from '../../auth/roles.constants';
+import { getAffectationDisplayLabel } from '../../common/utils/affectation-label.utils';
 
 const SORT_FIELDS: Record<string, Prisma.utilisateurOrderByWithRelationInput> = {
   login: { login: 'asc' },
@@ -17,6 +18,7 @@ const SORT_FIELDS: Record<string, Prisma.utilisateurOrderByWithRelationInput> = 
 export interface UserRoleRow {
   id_affectation: number;
   role: string;
+  role_label?: string;
   entite: string;
   id_entite: number;
   id_annee: number;
@@ -110,7 +112,7 @@ export class UsersService {
           affectation: {
             where: yearFilter ? { id_annee: yearFilter } : undefined,
             include: {
-              role: { select: { niveau_hierarchique: true } },
+              role: { select: { niveau_hierarchique: true, libelle: true } },
               entite_structure: { select: { nom: true } },
             },
           },
@@ -140,7 +142,7 @@ export class UsersService {
       include: {
         affectation: {
           include: {
-            role: { select: { niveau_hierarchique: true } },
+            role: { select: { niveau_hierarchique: true, libelle: true } },
             entite_structure: { select: { nom: true } },
           },
         },
@@ -289,11 +291,12 @@ export class UsersService {
     affectation: Array<{
       id_affectation: bigint;
       id_role: string;
+      libelle_source: string;
       id_entite: bigint;
       id_annee: bigint;
       date_debut: Date;
       date_fin: Date | null;
-      role: { niveau_hierarchique: number } | null;
+      role: { niveau_hierarchique: number; libelle: string | null } | null;
       entite_structure: { nom: string } | null;
     }>;
   }): UserListItem {
@@ -311,6 +314,7 @@ export class UsersService {
       roles: (user.affectation || []).map((affectation) => ({
         id_affectation: Number(affectation.id_affectation),
         role: affectation.id_role,
+        role_label: getAffectationDisplayLabel(affectation),
         entite: affectation.entite_structure?.nom ?? `Entite ${affectation.id_entite}`,
         id_entite: Number(affectation.id_entite),
         id_annee: Number(affectation.id_annee),

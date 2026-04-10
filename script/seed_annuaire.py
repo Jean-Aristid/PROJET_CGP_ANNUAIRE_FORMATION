@@ -44,6 +44,9 @@ def normalize_lookup_label(value):
     value = re.sub(r'[^a-z0-9]+', ' ', value)
     return value.strip()
 
+def has_value(*values):
+    return any(clean(value) for value in values)
+
 def genre_to_enum(civ):
     civ = clean(civ).upper()
     if civ in ('F',): return 'F'
@@ -77,19 +80,6 @@ def cycle_from_type(type_col, diplome):
     return None
 
 def infer_virtual_department(code_comp, type_diplome, mail_fonc):
-    code_comp = clean(code_comp)
-    type_norm = normalize_lookup_label(type_diplome)
-    mail_norm = normalize_lookup_label(mail_fonc)
-
-    # In the provided Galilee CSV, the engineering school branch is modeled
-    # across multiple home departments. We materialize the school-level
-    # structural container so the whole engineering branch appears under
-    # "Sup Galilée" in the structure org chart.
-    if code_comp == '903' and (
-        type_norm == 'ingenieur' or 'sup galilee' in mail_norm
-    ):
-        return 'Sup Galilée'
-
     return ''
 
 # ── Lecture XLSX ─────────────────────────────────────────────────────────────
@@ -250,7 +240,7 @@ TD_LIBELLE_MAP = {
 
 # ── Données de référence ──────────────────────────────────────────────────────
 
-TYPES_DIPLOMES = [
+DEFAULT_TYPES_DIPLOMES = [
     'Licence', 'Licence professionnelle', 'BUT', 'Master', 'Master professionnel',
     'Master recherche', 'Ingénieur', 'Doctorat', 'DUT', "Diplôme d'État",
     "Diplôme d'études spécialisées", "Diplôme d'études spécialisées complémentaires",
@@ -310,6 +300,22 @@ def main():
         source_label = str(xlsx_path)
 
     lines = []
+    type_diplome_sheet = sheets.get('TypesDiplomes', [])
+    types_diplomes = []
+    seen_type_diplomes = set()
+    for row in type_diplome_sheet[1:]:
+        raw_label = row[1] if len(row) > 1 else ''
+        normalized_label = (
+            TD_LIBELLE_MAP.get(raw_label)
+            or TD_LIBELLE_MAP.get(clean(raw_label))
+            or clean(raw_label)
+        )
+        if normalized_label and normalized_label not in seen_type_diplomes:
+            seen_type_diplomes.add(normalized_label)
+            types_diplomes.append(normalized_label)
+    if not types_diplomes:
+        types_diplomes = list(DEFAULT_TYPES_DIPLOMES)
+
     lines += [
         f'-- Seed généré automatiquement depuis {source_label}',
         '-- script/seed_annuaire.py',
@@ -320,19 +326,19 @@ def main():
         "TRUNCATE TABLE contact_role, affectation, delegation, demande_modification,",
         "  demande_role, signalement, notification, journal_audit, organigramme,",
         "  niveau, parcours, mention, departement, composante, entite_structure,",
-        "  utilisateur, role, type_diplome, annee_universitaire CASCADE;",
+        "  personne_externe, utilisateur, role, type_diplome, annee_universitaire CASCADE;",
         '',
     ]
 
     # ── 1. Types de diplômes ──────────────────────────────────────────────────
     lines.append('-- Types de diplômes')
     lines.append('INSERT INTO type_diplome (id_type_diplome, libelle, is_active) VALUES')
-    td_rows = [f"  ({i+1}, {q(lib)}, true)" for i, lib in enumerate(TYPES_DIPLOMES)]
+    td_rows = [f"  ({i+1}, {q(lib)}, true)" for i, lib in enumerate(types_diplomes)]
     lines.append(',\n'.join(td_rows) + ';')
-    lines.append(f"SELECT setval(pg_get_serial_sequence('type_diplome','id_type_diplome'), {len(TYPES_DIPLOMES)});")
+    lines.append(f"SELECT setval(pg_get_serial_sequence('type_diplome','id_type_diplome'), {len(types_diplomes)});")
     lines.append('')
 
-    td_id = {lib: i+1 for i, lib in enumerate(TYPES_DIPLOMES)}
+    td_id = {lib: i+1 for i, lib in enumerate(types_diplomes)}
 
     def get_td_id(diplome_label):
         normalized = TD_LIBELLE_MAP.get(diplome_label) or TD_LIBELLE_MAP.get(clean(diplome_label))
@@ -365,12 +371,13 @@ def main():
     # ── 4. Lecture feuille Composantes ────────────────────────────────────────
     comp_sheet = sheets.get('Composantes', [])
     composantes = {}  # code → dict
-    for row in comp_sheet[2:]:  # skip 2 header rows
+    for row_index, row in enumerate(comp_sheet[2:], start=3):  # skip 2 header rows
         if not row or not row[0]: continue
         code = clean(row[0])
         if not code.isdigit(): continue
         def g(r, i): return r[i] if i < len(r) else ''
         composantes[code] = {
+            'source_line': row_index,
             'code': code,
             'signe': g(row, 1),
             'nom': g(row, 2),
@@ -401,12 +408,14 @@ def main():
     # entite_names: id → nom original
     entite_names = {}
     user_by_key  = {}   # (email_lower ou prenom|nom) → id
+    user_by_email = {}  # email_lower → id
+    user_by_source = {} # source CSV sans identité exploitable → id
     user_data    = {}   # id → dict
 
     used_logins  = set()
     affectations = []
     contact_roles= []
-    aff_seen     = set()  # (uid, role_id, entite_id) pour dédupliquer
+    aff_seen     = set()  # (uid, role_id, entite_id, source_key) pour dédupliquer
     supervisor_norms_by_function_norm = {}
     role_level_by_id = {rid: niv for rid, _lib, niv, _gl, _adm, _tr in ROLES_REF}
     role_label_by_id = {rid: lib for rid, lib, _niv, _gl, _adm, _tr in ROLES_REF}
@@ -421,11 +430,32 @@ def main():
         return eid
 
     def get_user(prenom, nom, genre=None, categorie=None,
-                 mail_inst=None, mail_inst2=None, tel=None, bureau=None):
-        ukey = (mail_inst.lower().strip() if mail_inst else None,
-                prenom.lower().strip(), nom.lower().strip())
-        if ukey in user_by_key:
+                 mail_inst=None, mail_inst2=None, tel=None, bureau=None,
+                 source_key=None, fonction_label=None):
+        primary_email = mail_inst.lower().strip() if mail_inst else None
+        secondary_email = mail_inst2.lower().strip() if mail_inst2 else None
+        prenom_norm = prenom.lower().strip()
+        nom_norm = nom.lower().strip()
+        normalized_source_key = clean(source_key)
+        has_identity = bool(primary_email or secondary_email or prenom_norm or nom_norm)
+
+        candidate_ids = []
+        if primary_email:
+            candidate_ids.append(user_by_email.get(primary_email))
+        if secondary_email:
+            candidate_ids.append(user_by_email.get(secondary_email))
+        if prenom_norm or nom_norm:
+            candidate_ids.append(user_by_key.get((None, prenom_norm, nom_norm)))
+        candidate_ids = [candidate_id for candidate_id in candidate_ids if candidate_id is not None]
+        uid = candidate_ids[0] if candidate_ids else None
+
+        ukey = (primary_email, prenom_norm, nom_norm)
+        if uid is None and has_identity and ukey in user_by_key:
             uid = user_by_key[ukey]
+        if uid is None and not has_identity and normalized_source_key:
+            uid = user_by_source.get(normalized_source_key)
+
+        if uid is not None:
             u = user_data[uid]
             if mail_inst and not u['mail_inst']: u['mail_inst'] = mail_inst
             if mail_inst2 and not u['mail_inst2']: u['mail_inst2'] = mail_inst2
@@ -433,14 +463,31 @@ def main():
             if bureau and not u['bureau']: u['bureau'] = bureau
             if genre and not u['genre']: u['genre'] = genre
             if categorie and not u['categorie']: u['categorie'] = categorie
+            if has_identity:
+                user_by_key[(u['mail_inst'].lower().strip() if u['mail_inst'] else None, prenom_norm, nom_norm)] = uid
+                if prenom_norm or nom_norm:
+                    user_by_key[(None, prenom_norm, nom_norm)] = uid
+            if u['mail_inst']:
+                user_by_email[u['mail_inst'].lower().strip()] = uid
+            if u['mail_inst2']:
+                user_by_email[u['mail_inst2'].lower().strip()] = uid
+            if not has_identity and normalized_source_key:
+                user_by_source[normalized_source_key] = uid
             return uid
         uid = next_user[0]; next_user[0] += 1
-        user_by_key[ukey] = uid
+        if has_identity:
+            user_by_key[ukey] = uid
+            if prenom_norm or nom_norm:
+                user_by_key[(None, prenom_norm, nom_norm)] = uid
+        elif normalized_source_key:
+            user_by_source[normalized_source_key] = uid
         login_base = ''
         if mail_inst:
             login_base = mail_inst.split('@')[0]
         if not login_base and prenom and nom:
             login_base = f"{slug(prenom)}.{slug(nom)}"
+        if not login_base and normalized_source_key:
+            login_base = f"csv-{slug(normalized_source_key)}"
         if not login_base:
             login_base = f"user{uid}"
         login = re.sub(r'[^a-z0-9.\-]+', '', login_base.lower())[:60] or f"user{uid}"
@@ -449,12 +496,18 @@ def main():
             while f"{login}.{n}" in used_logins: n += 1
             login = f"{login}.{n}"
         used_logins.add(login)
+        display_prenom = prenom or (clean(fonction_label) if not has_identity else 'Contact') or 'Contact'
+        display_nom = nom or 'Non renseigné'
         user_data[uid] = {
-            'login': login, 'nom': nom or 'Contact', 'prenom': prenom or 'Contact',
+            'login': login, 'nom': display_nom, 'prenom': display_prenom,
             'genre': genre, 'categorie': categorie,
             'mail_inst': mail_inst, 'mail_inst2': mail_inst2,
             'tel': tel, 'bureau': bureau,
         }
+        if primary_email:
+            user_by_email[primary_email] = uid
+        if secondary_email:
+            user_by_email[secondary_email] = uid
         return uid
 
     def add_aff(
@@ -462,16 +515,21 @@ def main():
         role_id,
         entite_id,
         mail_fonc=None,
+        telephone=None,
+        bureau=None,
         fonction_label=None,
         supervisor_label=None,
         extra_lookup_labels=None,
+        source_key=None,
     ):
-        dedup_key = (uid, role_id, entite_id)
+        libelle_source = clean(fonction_label) or role_label_by_id.get(role_id) or role_id
+        normalized_source_key = clean(source_key)
+        dedup_key = (uid, role_id, entite_id, normalized_source_key or libelle_source)
         if dedup_key in aff_seen:
             return None
         aff_seen.add(dedup_key)
         aff_id = next_aff[0]; next_aff[0] += 1
-        lookup_labels = [fonction_label, role_label_by_id.get(role_id)]
+        lookup_labels = [libelle_source, role_label_by_id.get(role_id)]
         lookup_labels.extend(extra_lookup_labels or [])
         lookup_norms = tuple(
             dict.fromkeys(
@@ -483,18 +541,23 @@ def main():
         affectations.append({
             'id': aff_id, 'uid': uid, 'role': role_id,
             'entite': entite_id, 'annee': ANNEE_ID,
-            'fonction_label': clean(fonction_label),
+            'fonction_label': libelle_source,
             'fonction_norm': normalize_lookup_label(fonction_label),
             'supervisor_label': clean(supervisor_label),
             'supervisor_norm': normalize_lookup_label(supervisor_label),
             'id_affectation_n_plus_1': None,
             'lookup_norms': lookup_norms,
+            'libelle_source': libelle_source,
+            'source_key': normalized_source_key,
         })
-        if mail_fonc:
+        if mail_fonc or telephone or bureau:
             cr_id = next_cr[0]; next_cr[0] += 1
             contact_roles.append({
                 'id': cr_id, 'aff_id': aff_id,
-                'email': mail_fonc, 'type': 'fonctionnel',
+                'email': mail_fonc,
+                'type': 'fonctionnel' if mail_fonc else None,
+                'telephone': telephone,
+                'bureau': bureau,
             })
         return aff_id
 
@@ -504,7 +567,7 @@ def main():
     entite_parc  = {}   # (code_comp, dept_nom_lower, ment_nom_lower, parc_nom_lower) → entite_id
     entite_niv   = {}   # (code_comp, dept_nom_lower, ment_nom_lower, parc_nom_lower, type_col_lower) → entite_id
 
-    # mention metadata: eid → {cycle, td_id}
+    # mention metadata: eid → {type_diplome, cycle, td_id}
     mention_meta = {}
 
     # ── 5a. Composantes ───────────────────────────────────────────────────────
@@ -512,28 +575,49 @@ def main():
         eid = get_entite('COMPOSANTE', c['nom'])
         entite_comp[code] = eid
 
-        if c['dir_nom']:
+        dir_source_key = f"Composantes:{c['source_line']}:direction"
+        dir_fonction_label = c['dir_fonction'] or 'Directeur de composante'
+        if has_value(
+            c['dir_fonction'],
+            c['dir_civ'],
+            c['dir_prenom'],
+            c['dir_nom'],
+            c['dir_mail_inst'],
+            c['dir_mail_fonc'],
+        ):
             uid = get_user(
                 c['dir_prenom'], c['dir_nom'],
                 genre=genre_to_enum(c['dir_civ']),
                 mail_inst=c['dir_mail_inst'] or None,
                 categorie='EC',
+                source_key=dir_source_key,
+                fonction_label=dir_fonction_label,
             )
             add_aff(
                 uid,
                 'directeur-composante',
                 eid,
                 mail_fonc=c['dir_mail_fonc'] or None,
-                fonction_label='Directeur de composante',
-                extra_lookup_labels=[c['dir_fonction']],
+                fonction_label=dir_fonction_label,
+                extra_lookup_labels=['Directeur de composante'],
+                source_key=dir_source_key,
             )
 
-        if c['da_nom']:
+        da_source_key = f"Composantes:{c['source_line']}:da"
+        if has_value(
+            c['da_civ'],
+            c['da_prenom'],
+            c['da_nom'],
+            c['da_mail_inst'],
+            c['da_mail_fonc'],
+        ):
             uid = get_user(
                 c['da_prenom'], c['da_nom'],
                 genre=genre_to_enum(c['da_civ']),
                 mail_inst=c['da_mail_inst'] or None,
                 categorie='BIATSS',
+                source_key=da_source_key,
+                fonction_label='Directeur administratif',
             )
             add_aff(
                 uid,
@@ -541,6 +625,7 @@ def main():
                 eid,
                 mail_fonc=c['da_mail_fonc'] or None,
                 fonction_label='Directeur administratif',
+                source_key=da_source_key,
             )
 
     # ── 5b. Feuilles de données (903-IG, 925-IUTB, …) ────────────────────────
@@ -582,7 +667,7 @@ def main():
                     pass
             return ''
 
-        for row in rows[1:]:
+        for line_number, row in enumerate(rows[1:], start=2):
             if not any(row): continue
             code_comp  = col(row, 'composante')
             type_dipl  = col(row, 'type_diplome')
@@ -604,6 +689,11 @@ def main():
 
             if not code_comp: continue
             if code_comp not in entite_comp: continue
+            if not has_value(
+                fonction, prenom, nom_u, mail_inst, mail_inst2,
+                mail_fonc, bureau, telephone, supervisor_label,
+            ):
+                continue
             virtual_dept = infer_virtual_department(code_comp, type_dipl, mail_fonc)
             if virtual_dept:
                 dept_nom = virtual_dept
@@ -631,8 +721,18 @@ def main():
                     entite_ment[mk] = ment_eid
                     # Stocker cycle et type_diplome pour cette mention
                     cycle = cycle_from_type(type_col, type_dipl)
+                    normalized_type_dipl = (
+                        TD_LIBELLE_MAP.get(type_dipl)
+                        or TD_LIBELLE_MAP.get(clean(type_dipl))
+                        or type_dipl
+                        or None
+                    )
                     td = get_td_id(type_dipl) if type_dipl else None
-                    mention_meta[ment_eid] = {'cycle': cycle, 'td_id': td}
+                    mention_meta[ment_eid] = {
+                        'type_diplome': normalized_type_dipl,
+                        'cycle': cycle,
+                        'td_id': td,
+                    }
                 current_eid = entite_ment[mk]
 
             # Parcours
@@ -645,11 +745,24 @@ def main():
             # Niveau
             if type_col and type_col.upper() not in ('L', 'M', 'ING'):
                 nk = (code_comp, dept_nom.lower(), ment_nom.lower(), parc_nom.lower(), type_col.lower())
+                level_parent_eid = current_eid
+                parent_match = re.match(r'^(.*?)(\d+)$', type_col.strip(), re.IGNORECASE)
+                if parent_match:
+                    parent_type_col = clean(parent_match.group(1))
+                    parent_nk = (
+                        code_comp,
+                        dept_nom.lower(),
+                        ment_nom.lower(),
+                        parc_nom.lower(),
+                        parent_type_col.lower(),
+                    )
+                    if parent_type_col and parent_nk in entite_niv:
+                        level_parent_eid = entite_niv[parent_nk]
                 if nk not in entite_niv:
-                    entite_niv[nk] = get_entite('NIVEAU', type_col, current_eid)
+                    entite_niv[nk] = get_entite('NIVEAU', type_col, level_parent_eid)
+                current_eid = entite_niv[nk]
 
-            # Utilisateur
-            if not prenom and not nom_u and not mail_inst: continue
+            source_key = f'{sheet_name}:{line_number}'
 
             uid = get_user(
                 prenom, nom_u,
@@ -659,6 +772,8 @@ def main():
                 mail_inst2=mail_inst2 or None,
                 tel=telephone or None,
                 bureau=bureau or None,
+                source_key=source_key,
+                fonction_label=fonction,
             )
 
             role_id = map_role(fonction)
@@ -670,6 +785,19 @@ def main():
                     normalize_lookup_label(parc_nom),
                 ) if part
             )
+            if role_id == 'utilisateur-simple':
+                if fonction_norm == 'directeur adjoint charge du cycle master':
+                    role_id = 'directeur-adjoint-licence'
+                elif 'cursus preparatoire' in context_norm and fonction_norm == 'directeur':
+                    role_id = 'directeur-specialite'
+                elif 'cursus preparatoire' in context_norm and fonction_norm == 'directeur adjoint':
+                    role_id = 'responsable-formation'
+                elif fonction_norm in (
+                    'responsable des cours communs scientifiques',
+                    'responsable des cours communs de culture ingenieur',
+                    'responsable',
+                ):
+                    role_id = 'responsable-formation'
             if 'cursus preparatoire' in context_norm:
                 if normalize_lookup_label(fonction) == 'directeur':
                     extra_lookup_labels.append('Directeur du cursus préparatoire')
@@ -680,9 +808,12 @@ def main():
                 role_id,
                 current_eid,
                 mail_fonc=mail_fonc or None,
+                telephone=telephone or None,
+                bureau=bureau or None,
                 fonction_label=fonction,
                 supervisor_label=supervisor_label,
                 extra_lookup_labels=extra_lookup_labels,
+                source_key=source_key,
             )
 
     entite_parent_by_id = {
@@ -788,7 +919,7 @@ def main():
             f"  ({eid}, {ANNEE_ID}, {parent_id if parent_id else 'NULL'}, '{type_e}', {q(nom_original)})"
         )
     lines.append(',\n'.join(ent_rows) + ';')
-    lines.append(f"SELECT setval(pg_get_serial_sequence('entite_structure','id_entite'), {next_entite[0]});")
+    lines.append(f"SELECT setval(pg_get_serial_sequence('entite_structure','id_entite'), {next_entite[0]-1});")
     lines.append('')
 
     print(f'Utilisateurs : {len(user_data)}')
@@ -827,10 +958,11 @@ def main():
         ment_rows_sql = []
         for (code_comp, dept_l, ment_l), eid in entite_ment.items():
             meta = mention_meta.get(eid, {})
+            type_diplome_val = meta.get('type_diplome')
             cycle_val = meta.get('cycle')
             td_val = meta.get('td_id')
             ment_rows_sql.append(
-                f"  ({eid}, NULL, {cycle_val if cycle_val else 'NULL'}, {td_val if td_val else 'NULL'})"
+                f"  ({eid}, {q(type_diplome_val)}, {cycle_val if cycle_val else 'NULL'}, {td_val if td_val else 'NULL'})"
             )
         lines.append(',\n'.join(ment_rows_sql) + ';')
         lines.append('')
@@ -861,29 +993,29 @@ def main():
                 f"{q(u['tel'])}, {q(u['bureau'])}, 'ACTIF')"
             )
         lines.append(',\n'.join(u_rows) + ';')
-        lines.append(f"SELECT setval(pg_get_serial_sequence('utilisateur','id_user'), {next_user[0]});")
+        lines.append(f"SELECT setval(pg_get_serial_sequence('utilisateur','id_user'), {next_user[0]-1});")
         lines.append('')
 
     # affectations
     if affectations:
-        lines.append('INSERT INTO affectation (id_affectation, id_user, id_role, id_entite, id_annee, date_debut, id_affectation_n_plus_1) VALUES')
+        lines.append('INSERT INTO affectation (id_affectation, id_user, id_role, id_entite, id_annee, date_debut, libelle_source, source_key, id_affectation_n_plus_1) VALUES')
         a_rows = [
-            f"  ({a['id']}, {a['uid']}, {q(a['role'])}, {a['entite']}, {a['annee']}, '2025-09-01', {a['id_affectation_n_plus_1'] if a['id_affectation_n_plus_1'] else 'NULL'})"
+            f"  ({a['id']}, {a['uid']}, {q(a['role'])}, {a['entite']}, {a['annee']}, '2025-09-01', {q(a['libelle_source'])}, {q(a['source_key'])}, {a['id_affectation_n_plus_1'] if a['id_affectation_n_plus_1'] else 'NULL'})"
             for a in affectations
         ]
         lines.append(',\n'.join(a_rows) + ';')
-        lines.append(f"SELECT setval(pg_get_serial_sequence('affectation','id_affectation'), {next_aff[0]});")
+        lines.append(f"SELECT setval(pg_get_serial_sequence('affectation','id_affectation'), {next_aff[0]-1});")
         lines.append('')
 
     # contact_role
     if contact_roles:
-        lines.append('INSERT INTO contact_role (id_contact_role, id_affectation, email_fonctionnelle, type_email) VALUES')
+        lines.append('INSERT INTO contact_role (id_contact_role, id_affectation, email_fonctionnelle, type_email, telephone, bureau) VALUES')
         cr_rows = [
-            f"  ({cr['id']}, {cr['aff_id']}, {q(cr['email'])}, {q(cr['type'])})"
+            f"  ({cr['id']}, {cr['aff_id']}, {q(cr['email'])}, {q(cr['type'])}, {q(cr['telephone'])}, {q(cr['bureau'])})"
             for cr in contact_roles
         ]
         lines.append(',\n'.join(cr_rows) + ';')
-        lines.append(f"SELECT setval(pg_get_serial_sequence('contact_role','id_contact_role'), {next_cr[0]});")
+        lines.append(f"SELECT setval(pg_get_serial_sequence('contact_role','id_contact_role'), {next_cr[0]-1});")
         lines.append('')
 
     # Utilisateurs démo (services centraux)
@@ -894,7 +1026,7 @@ def main():
         f"INSERT INTO utilisateur (id_user, login, nom, prenom, statut) VALUES",
         f"  ({demo_uid_start}, 'sc.admin', 'Admin', 'Services', 'ACTIF'),",
         f"  ({demo_uid_start+1}, 'dsi.tech', 'Tech', 'DSI', 'ACTIF');",
-        f"SELECT setval(pg_get_serial_sequence('utilisateur','id_user'), {demo_uid_start+2});",
+        f"SELECT setval(pg_get_serial_sequence('utilisateur','id_user'), {demo_uid_start+1});",
         f"INSERT INTO affectation (id_user, id_role, id_entite, id_annee, date_debut) VALUES",
         f"  ({demo_uid_start}, 'services-centraux', {first_comp_eid}, {ANNEE_ID}, '2025-09-01'),",
         f"  ({demo_uid_start+1}, 'administrateur', {first_comp_eid}, {ANNEE_ID}, '2025-09-01');",

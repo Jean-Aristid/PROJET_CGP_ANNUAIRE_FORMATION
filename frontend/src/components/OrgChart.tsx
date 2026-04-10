@@ -6,6 +6,7 @@ import {
   EMPTY_HIERARCHY_FILTERS,
   HIERARCHY_LEVELS,
   type HierarchyFilters,
+  formatHierarchyOptionLabel,
   getDeepestSelectedEntiteId,
   getDescendantEntiteIds,
   getHierarchyOptions,
@@ -74,10 +75,7 @@ const HIERARCHY_EMPTY_LABELS: Record<keyof HierarchyFilters, string> = {
   niveauId: "Tous les niveaux",
 };
 
-const levelLabel = (type: string | null, nodeName?: string | null) => {
-  if (type?.toLowerCase() === "departement" && nodeName?.trim().toLowerCase() === "sup galilée") {
-    return "École d’ingénieur";
-  }
+const levelLabel = (type: string | null, _nodeName?: string | null) => {
   if (!type) return "Nœud";
   const normalized = type.toLowerCase();
   if (normalized === "composante") return "Composante";
@@ -695,7 +693,7 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
         return {
           ...organigramme,
           rootEntite,
-          rootName: rootEntite?.nom ?? `Racine ${organigramme.id_entite_racine}`,
+          rootName: rootEntite?.nom ?? "Structure racine",
           rootType: rootEntite?.type_entite ?? null,
           rootCode: rootEntite?.code_composante ?? null,
         };
@@ -858,7 +856,7 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
                 type="text"
                 value={rootSearch}
                 onChange={(e) => setRootSearch(e.target.value)}
-                placeholder="Nom, code ou ID de structure..."
+                placeholder="Nom, code ou structure..."
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
               />
             </div>
@@ -897,7 +895,8 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
               {rootOptions.length === 0 && <option value="">Aucune structure</option>}
               {rootOptions.map((entite) => (
                 <option key={entite.id_entite} value={entite.id_entite}>
-                  #{entite.id_entite} — {entite.nom} ({levelLabel(entite.type_entite, entite.nom)})
+                  {entite.nom} ({levelLabel(entite.type_entite, entite.nom)}
+                  {entite.code_composante ? ` · code ${entite.code_composante}` : ""})
                 </option>
               ))}
             </select>
@@ -959,9 +958,7 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
                         <option value="">{HIERARCHY_EMPTY_LABELS[level.key]}</option>
                         {options.map((entite) => (
                           <option key={entite.id_entite} value={entite.id_entite}>
-                            {entite.type_entite === "COMPOSANTE" && entite.code_composante
-                              ? `${entite.nom} (${entite.code_composante})`
-                              : entite.nom}
+                            {formatHierarchyOptionLabel(entite, entites)}
                           </option>
                         ))}
                       </select>
@@ -1261,7 +1258,7 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
                         {organigramme.rootName}
                       </div>
                       <div className="text-xs text-slate-500 mt-1">
-                        #{organigramme.id_entite_racine} · {levelLabel(organigramme.rootType, organigramme.rootName)}
+                        {levelLabel(organigramme.rootType, organigramme.rootName)}
                         {organigramme.rootCode ? ` · code ${organigramme.rootCode}` : ""}
                       </div>
                     </div>
@@ -1288,9 +1285,9 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
                       </div>
                     </div>
                     <div className="rounded-lg bg-white border border-slate-200 p-3">
-                      <div className="text-slate-500 text-xs mb-1">Identifiant</div>
+                      <div className="text-slate-500 text-xs mb-1">Référence</div>
                       <div className="text-slate-900 font-medium">
-                        Organigramme #{organigramme.id_organigramme}
+                        Organigramme {organigramme.id_organigramme}
                       </div>
                     </div>
                   </div>

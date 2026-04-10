@@ -115,8 +115,10 @@ create table affectation (
   id_annee                bigint not null references annee_universitaire(id_annee),
   date_debut              date not null,
   date_fin                date,
+  libelle_source          text not null default '',
+  source_key              text not null default '',
   id_affectation_n_plus_1 bigint references affectation(id_affectation) on delete set null,
-  constraint affectation_unique unique (id_user, id_role, id_entite, id_annee)
+  constraint affectation_unique unique (id_user, id_role, id_entite, id_annee, source_key)
 );
 
 create table contact_role (

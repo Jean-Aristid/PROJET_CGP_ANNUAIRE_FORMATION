@@ -1,4 +1,4 @@
-Composante,Type Diplome,Département,Mention,Code étape,Parcours,Type,N,Catégorie fonction,Prénom,NOM,Civilité,Catégorie personnel,Mail institutionnel,Autre mail institutionnel,Mail fonctionnel,Bureau,Téléphone,N+1
+﻿Composante,Type Diplome,Département,Mention,Code étape,Parcours,Type,N,Catégorie fonction,Prénom,NOM,Civilité,Catégorie personnel,Mail institutionnel,Autre mail institutionnel,Mail fonctionnel,Bureau,Téléphone,N+1
 903,,,,,,,Directeur de composante,Enseignant,Bruno,MANIL,M,EC,bruno.manil@univ-paris13.fr,,directeur.galilee@univ-paris13.fr,,,
 903,,Informatique,,,,,Président de département,Enseignant,Sophie,TOULOUSE,F,EC,,sophie.toulouse@lipn.univ-paris13.fr,departement.informatique.galilee@univ-paris13.fr,,,Directeur de composante
 903,,Informatique,,,,,Vice-président de département,Enseignant,Thierry,HAMON,M,EC,thierry.hamon@univ-paris13.fr,,departement.informatique.galilee@univ-paris13.fr,,,Président de département

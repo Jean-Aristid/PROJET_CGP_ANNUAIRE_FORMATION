@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StandardWorkbookService } from './standard-workbook.service';
+import { getAffectationDisplayLabel } from '../../common/utils/affectation-label.utils';
 
 @Injectable()
 export class ExportsService {
@@ -33,7 +34,7 @@ export class ExportsService {
       nom: affectation.utilisateur.nom,
       prenom: affectation.utilisateur.prenom,
       email_institutionnel: affectation.utilisateur.email_institutionnel,
-      role: affectation.role?.libelle ?? affectation.id_role,
+      role: getAffectationDisplayLabel(affectation),
       entite: affectation.entite_structure?.nom ?? `Entite ${affectation.id_entite}`,
       id_annee: Number(affectation.id_annee),
     }));

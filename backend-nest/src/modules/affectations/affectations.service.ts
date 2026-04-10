@@ -128,7 +128,12 @@ export class AffectationsService {
     const updated = await this.prisma.affectation.update({
       where: { id_affectation: parsedId },
       data: {
-        ...(payload.id_role !== undefined ? { id_role: payload.id_role } : {}),
+        ...(payload.id_role !== undefined
+          ? {
+              id_role: payload.id_role,
+              ...(payload.id_role !== existing.id_role ? { libelle_source: '' } : {}),
+            }
+          : {}),
         ...(payload.id_entite !== undefined ? { id_entite: BigInt(payload.id_entite) } : {}),
         ...(payload.date_debut !== undefined ? { date_debut: new Date(payload.date_debut) } : {}),
         ...(payload.date_fin !== undefined

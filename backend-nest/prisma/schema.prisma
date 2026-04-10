@@ -15,6 +15,8 @@ model affectation {
   id_annee                 BigInt
   date_debut               DateTime            @db.Date
   date_fin                 DateTime?           @db.Date
+  libelle_source           String              @default("")
+  source_key               String              @default("")
   id_affectation_n_plus_1  BigInt?
   annee_universitaire      annee_universitaire @relation(fields: [id_annee], references: [id_annee], onDelete: NoAction, onUpdate: NoAction)
   entite_structure         entite_structure    @relation(fields: [id_entite], references: [id_entite], onDelete: NoAction, onUpdate: NoAction)
@@ -24,7 +26,7 @@ model affectation {
   sous_affectations        affectation[]       @relation("affectation_hierarchie")
   contact_role             contact_role[]
 
-  @@unique([id_user, id_role, id_entite, id_annee], map: "affectation_unique")
+  @@unique([id_user, id_role, id_entite, id_annee, source_key], map: "affectation_unique")
   @@index([id_annee], map: "idx_affectation_annee")
   @@index([id_entite], map: "idx_affectation_entite")
   @@index([id_role], map: "idx_affectation_role")

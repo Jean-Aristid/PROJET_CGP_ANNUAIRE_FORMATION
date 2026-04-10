@@ -24,6 +24,7 @@ import {
   EMPTY_HIERARCHY_FILTERS,
   HIERARCHY_LEVELS,
   type HierarchyFilters,
+  formatHierarchyOptionLabel,
   getFilteredEntites,
   getHierarchyOptions,
   updateHierarchyFilters,
@@ -291,7 +292,7 @@ export function ImportExport({
           (entite) =>
             workbookSourceScopeMap.get(String(entite.id_entite)) ?? {
               id: String(entite.id_entite),
-              label: `#${entite.id_entite} — ${formatEntiteOptionLabel(entite)} (${entite.type_entite})`,
+              label: `${formatEntiteOptionLabel(entite)} (${entite.type_entite})`,
               type: entite.type_entite,
             },
         )
@@ -754,7 +755,7 @@ export function ImportExport({
                             type: "search",
                             value: workbookExportSearch,
                             onChange: (value) => setWorkbookExportSearch(value),
-                            placeholder: "Nom, ID, type, code composante…",
+                            placeholder: "Nom, type, code composante…",
                           },
                           ...HIERARCHY_LEVELS.map((level) => ({
                             key: `export-${level.key}`,
@@ -770,7 +771,7 @@ export function ImportExport({
                               { value: "", label: HIERARCHY_EMPTY_LABELS[level.key] },
                               ...workbookExportHierarchyOptions[level.key].map((entite) => ({
                                 value: String(entite.id_entite),
-                                label: formatEntiteOptionLabel(entite),
+                                label: formatHierarchyOptionLabel(entite, currentYearEntites),
                               })),
                             ],
                           })),
@@ -794,7 +795,7 @@ export function ImportExport({
                           <option value="">Sélectionner une structure</option>
                           {workbookExportOptions.map((entite) => (
                             <option key={entite.id_entite} value={entite.id_entite}>
-                              #{entite.id_entite} — {formatEntiteOptionLabel(entite)} ({entite.type_entite})
+                              {formatEntiteOptionLabel(entite)} ({entite.type_entite})
                             </option>
                           ))}
                         </select>
@@ -911,7 +912,7 @@ export function ImportExport({
                               type: "search",
                               value: workbookSourceSearch,
                               onChange: (value) => setWorkbookSourceSearch(value),
-                              placeholder: "Nom, ID, type, code composante…",
+                            placeholder: "Nom, type, code composante…",
                             },
                             ...HIERARCHY_LEVELS.map((level) => ({
                               key: `source-${level.key}`,
@@ -927,7 +928,7 @@ export function ImportExport({
                                 { value: "", label: HIERARCHY_EMPTY_LABELS[level.key] },
                                 ...workbookSourceHierarchyOptions[level.key].map((entite) => ({
                                   value: String(entite.id_entite),
-                                  label: formatEntiteOptionLabel(entite),
+                                  label: formatHierarchyOptionLabel(entite, workbookStructureEntites),
                                 })),
                               ],
                             })),

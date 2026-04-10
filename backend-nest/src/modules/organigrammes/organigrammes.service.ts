@@ -8,6 +8,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import type { CurrentUser } from '../../common/types/current-user';
 import { ROLE_IDS } from '../../auth/roles.constants';
 import { isSupportRole } from '../../common/utils/role-support.utils';
+import { getAffectationDisplayLabel } from '../../common/utils/affectation-label.utils';
 
 export interface ApiResponsable {
   id_user?: number;
@@ -298,6 +299,7 @@ export class OrganigrammesService {
       id_user: bigint;
       id_entite: bigint;
       id_role: string;
+      libelle_source: string;
       utilisateur: {
         login: string;
         nom: string;
@@ -328,6 +330,7 @@ export class OrganigrammesService {
 
     const normalizedQuery = q.toLowerCase();
     const numericId = this.parseNumericId(q);
+    const roleLabel = getAffectationDisplayLabel(affectation);
 
     if (
       numericId &&
@@ -348,9 +351,7 @@ export class OrganigrammesService {
       (affectation.utilisateur.email_institutionnel_secondaire || '')
         .toLowerCase()
         .includes(normalizedQuery) ||
-      (affectation.role?.libelle || affectation.id_role)
-        .toLowerCase()
-        .includes(normalizedQuery) ||
+      roleLabel.toLowerCase().includes(normalizedQuery) ||
       (affectation.entite_structure?.nom || '').toLowerCase().includes(normalizedQuery) ||
       affiliationLabel.toLowerCase().includes(normalizedQuery)
     );
@@ -608,7 +609,7 @@ export class OrganigrammesService {
           id_user: Number(affectation.id_user),
           nom: `${affectation.utilisateur.prenom} ${affectation.utilisateur.nom}`.trim(),
           type_entite: 'PERSONNE',
-          role_label: affectation.role?.libelle ?? affectation.id_role,
+          role_label: getAffectationDisplayLabel(affectation),
           structure_nom:
             affiliationByAffectationId.get(affectationId) ??
             this.buildAffiliationLabel(Number(affectation.id_entite), entiteById, rootId),
@@ -662,7 +663,8 @@ export class OrganigrammesService {
 
     const responsablesMap = new Map<number, ApiResponsable[]>();
     affectations.forEach((affectation) => {
-      if (!shouldDisplayInOrgChart(affectation.id_role, affectation.role?.libelle)) {
+      const roleLabel = getAffectationDisplayLabel(affectation);
+      if (!shouldDisplayInOrgChart(affectation.id_role, roleLabel)) {
         return;
       }
 
@@ -675,7 +677,7 @@ export class OrganigrammesService {
         prenom: affectation.utilisateur.prenom,
         email_institutionnel: affectation.utilisateur.email_institutionnel,
         id_role: affectation.id_role,
-        role_label: affectation.role?.libelle ?? affectation.id_role,
+        role_label: roleLabel,
         id_entite: Number(affectation.id_entite),
         entite_nom: affectation.entite_structure?.nom ?? null,
       });

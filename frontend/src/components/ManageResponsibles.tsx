@@ -16,6 +16,7 @@ import {
   EMPTY_HIERARCHY_FILTERS,
   HIERARCHY_LEVELS,
   type HierarchyFilters,
+  formatHierarchyOptionLabel,
   getHierarchyOptions,
   matchesEntiteHierarchy,
   updateHierarchyFilters,
@@ -51,6 +52,7 @@ interface ManageResponsiblesProps {
 type ApiUserRole = {
   id_affectation: number;
   role: string;
+  role_label?: string;
   entite: string;
   id_entite: number;
   id_annee: number;
@@ -342,8 +344,12 @@ export function ManageResponsibles({
         const component = hierarchy.composante || hierarchy.departement || "-";
         const department = hierarchy.departement || hierarchy.mention || "-";
         const formations = assignments.map((role) => role.entite).filter(Boolean);
-        const roleLabels = assignments.map((role) =>
-          roleLabelMap.get(role.role) || getRoleLabel(role.role as UserRole) || role.role,
+        const roleLabels = assignments.map(
+          (role) =>
+            role.role_label ||
+            roleLabelMap.get(role.role) ||
+            getRoleLabel(role.role as UserRole) ||
+            role.role,
         );
 
         return {
@@ -890,10 +896,7 @@ export function ManageResponsibles({
                 { value: "", label: HIERARCHY_EMPTY_LABELS[level.key] },
                 ...options.map((entite) => ({
                   value: String(entite.id_entite),
-                  label:
-                    entite.type_entite === "COMPOSANTE" && entite.code_composante
-                      ? `${entite.nom} (${entite.code_composante})`
-                      : entite.nom,
+                  label: formatHierarchyOptionLabel(entite, entites),
                 })),
               ],
             };
@@ -930,7 +933,8 @@ export function ManageResponsibles({
                       key={assignment.id_affectation}
                       className="rounded-full border border-slate-200 bg-white px-3 py-1"
                     >
-                      {(roleLabelMap.get(assignment.role) ||
+                      {(assignment.role_label ||
+                        roleLabelMap.get(assignment.role) ||
                         getRoleLabel(assignment.role as UserRole) ||
                         assignment.role)}{" "}
                       - {assignment.entite}
@@ -1190,7 +1194,8 @@ export function ManageResponsibles({
                         {person.assignments.map((assignment) => (
                           <div key={`${assignment.id_affectation}`} className="flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-700 rounded-full text-xs">
                             <span>
-                              {roleLabelMap.get(assignment.role) ||
+                              {assignment.role_label ||
+                                roleLabelMap.get(assignment.role) ||
                                 getRoleLabel(assignment.role as UserRole) ||
                                 assignment.role}{" "}
                               - {assignment.entite}
@@ -1292,7 +1297,7 @@ export function ManageResponsibles({
             <AlertDialogTitle>Supprimer cette affectation ?</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteAffectationTarget
-                ? `${deleteAffectationTarget.person.name} perdra l'affectation ${roleLabelMap.get(deleteAffectationTarget.assignment.role) || getRoleLabel(deleteAffectationTarget.assignment.role as UserRole) || deleteAffectationTarget.assignment.role} sur ${deleteAffectationTarget.assignment.entite}.`
+                ? `${deleteAffectationTarget.person.name} perdra l'affectation ${deleteAffectationTarget.assignment.role_label || roleLabelMap.get(deleteAffectationTarget.assignment.role) || getRoleLabel(deleteAffectationTarget.assignment.role as UserRole) || deleteAffectationTarget.assignment.role} sur ${deleteAffectationTarget.assignment.entite}.`
                 : "Cette affectation sera supprimée pour l'année en cours."}
             </AlertDialogDescription>
           </AlertDialogHeader>

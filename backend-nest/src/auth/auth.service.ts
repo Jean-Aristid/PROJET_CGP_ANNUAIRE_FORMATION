@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import type { CurrentUser, CurrentUserAffectation } from '../common/types/current-user';
+import { getAffectationDisplayLabel } from '../common/utils/affectation-label.utils';
 
 @Injectable()
 export class AuthService {
@@ -61,6 +62,7 @@ export class AuthService {
   private mapAffectation(affectation: {
     id_affectation: bigint;
     id_role: string;
+    libelle_source: string;
     id_entite: bigint;
     id_annee: bigint;
     role: { libelle: string };
@@ -70,7 +72,7 @@ export class AuthService {
     return {
       affectationId: String(affectation.id_affectation),
       roleId: affectation.id_role,
-      roleLabel: affectation.role?.libelle ?? null,
+      roleLabel: getAffectationDisplayLabel(affectation),
       entiteId: String(affectation.id_entite),
       entiteType: affectation.entite_structure?.type_entite ?? null,
       entiteName: affectation.entite_structure?.nom ?? null,

@@ -455,7 +455,7 @@ export function YearManagement({
               type="text"
               value={structureSearch}
               onChange={(e) => setStructureSearch(e.target.value)}
-              placeholder="Rechercher par nom, code ou identifiant..."
+              placeholder="Rechercher par nom ou code..."
               className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-white"
             />
 
@@ -481,7 +481,7 @@ export function YearManagement({
                     style={{ paddingLeft: `${entite.depth * 16}px` }}
                   >
                     <div className="text-sm font-medium text-slate-900 truncate">
-                      #{entite.id_entite} — {entite.nom}
+                      {entite.nom}
                     </div>
                     <div className="text-xs text-slate-500">
                       {entite.type_entite}

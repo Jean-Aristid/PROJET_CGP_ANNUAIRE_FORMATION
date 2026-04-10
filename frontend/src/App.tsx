@@ -338,6 +338,7 @@ const buildUser = (
   years: AcademicYear[],
 ): User => {
   const yearMap = new Map(years.map((year) => [Number(year.id), year.year]));
+  const topRole = getTopRole(affectations);
 
   const roles = affectations.map((aff) => {
     const entite = entiteMap.get(aff.id_entite);
@@ -358,9 +359,10 @@ const buildUser = (
     };
   });
 
-  const component = affectations.length
-    ? resolveHierarchy(affectations[0].id_entite, entiteMap).composante
-    : undefined;
+  const component =
+    topRole === "services-centraux" || topRole === "administrateur" || affectations.length === 0
+      ? undefined
+      : resolveHierarchy(affectations[0].id_entite, entiteMap).composante;
 
   return {
     id: String(apiUser.userId),
@@ -368,7 +370,7 @@ const buildUser = (
     name: `${apiUser.prenom} ${apiUser.nom}`,
     firstName: apiUser.prenom,
     lastName: apiUser.nom,
-    role: getTopRole(affectations),
+    role: topRole,
     email: apiUser.emailInstitutionnel || "",
     secondaryEmail: apiUser.emailInstitutionnelSecondaire || undefined,
     genre: apiUser.genre || undefined,

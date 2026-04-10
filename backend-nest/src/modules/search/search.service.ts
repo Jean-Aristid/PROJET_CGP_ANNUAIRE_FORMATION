@@ -3,6 +3,7 @@ import type { Prisma, entite_type } from '@prisma/client';
 import { ROLE_IDS } from '../../auth/roles.constants';
 import type { CurrentUser } from '../../common/types/current-user';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { getAffectationDisplayLabel } from '../../common/utils/affectation-label.utils';
 import { normalizePagination } from '../../common/utils/pagination';
 import { SearchQueryDto } from './dto/search-query.dto';
 
@@ -84,6 +85,8 @@ export class SearchService {
                   email_institutionnel: { contains: query.q, mode: 'insensitive' as const },
                 },
               },
+              { role: { libelle: { contains: query.q, mode: 'insensitive' as const } } },
+              { libelle_source: { contains: query.q, mode: 'insensitive' as const } },
               { entite_structure: { nom: { contains: query.q, mode: 'insensitive' as const } } },
               {
                 entite_structure: {
@@ -120,7 +123,7 @@ export class SearchService {
         prenom: item.utilisateur.prenom,
         email_institutionnel: item.utilisateur.email_institutionnel,
         role_id: item.id_role,
-        role_label: item.role?.libelle ?? item.id_role,
+        role_label: getAffectationDisplayLabel(item),
         id_entite: Number(item.id_entite),
         entite_nom: item.entite_structure?.nom ?? null,
         type_entite: item.entite_structure?.type_entite ?? null,
@@ -199,7 +202,7 @@ export class SearchService {
           nom: affectation.utilisateur.nom,
           prenom: affectation.utilisateur.prenom,
           role_id: affectation.id_role,
-          role_label: affectation.role?.libelle ?? affectation.id_role,
+          role_label: getAffectationDisplayLabel(affectation),
         })),
       })),
       page,

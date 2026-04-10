@@ -3,6 +3,7 @@ import type { composante_type } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import type { UpdateEntiteDto } from './dto/update-entite.dto';
 import { isSupportRole } from '../../common/utils/role-support.utils';
+import { getAffectationDisplayLabel } from '../../common/utils/affectation-label.utils';
 
 export type EntiteListItem = {
   id_entite: number;
@@ -233,6 +234,7 @@ export class EntitesService {
 
     const mapPerson = (a: (typeof affectations)[0]): AffectationPerson => {
       const cr = (a as any).contact_role?.[0] ?? null;
+      const roleLabel = getAffectationDisplayLabel(a);
       return {
         id_affectation: Number(a.id_affectation),
         id_user: Number(a.id_user),
@@ -242,10 +244,10 @@ export class EntitesService {
         telephone: a.utilisateur.telephone,
         bureau: a.utilisateur.bureau,
         id_role: a.id_role,
-        role_libelle: a.role?.libelle ?? a.id_role,
+        role_libelle: roleLabel,
         is_responsable:
           !NON_RESPONSABLE_ROLES.has(a.id_role) &&
-          !isSupportRole(a.id_role, a.role?.libelle),
+          !isSupportRole(a.id_role, roleLabel),
         contact: cr
           ? {
               id_contact_role: Number(cr.id_contact_role),

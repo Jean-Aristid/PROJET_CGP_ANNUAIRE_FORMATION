@@ -37,6 +37,8 @@ async function main() {
     'parcours',
     'niveau',
     'entite_structure',
+    'type_diplome',
+    'personne_externe',
     'annee_universitaire',
     'utilisateur',
     'role',

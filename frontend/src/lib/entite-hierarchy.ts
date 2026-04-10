@@ -26,6 +26,20 @@ type HierarchyLineage = Partial<Record<HierarchyEntiteType, number>>;
 const sortByName = (items: EntiteStructure[]) =>
   [...items].sort((a, b) => a.nom.localeCompare(b.nom, "fr", { sensitivity: "base" }));
 
+const normalizeLabel = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+export const formatEntiteLabel = (
+  entite: Pick<EntiteStructure, "nom" | "type_entite" | "code_composante">,
+) =>
+  entite.type_entite === "COMPOSANTE" && entite.code_composante
+    ? `${entite.nom} (${entite.code_composante})`
+    : entite.nom;
+
 function getYearEntites(
   entites: EntiteStructure[],
   yearId?: string | number | null,
@@ -40,6 +54,53 @@ function getYearEntites(
 
 function buildEntiteMap(entites: EntiteStructure[]): Map<number, EntiteStructure> {
   return new Map(entites.map((entite) => [entite.id_entite, entite]));
+}
+
+function getAncestorLabels(
+  entite: EntiteStructure,
+  entiteMap: Map<number, EntiteStructure>,
+): string[] {
+  const labels: string[] = [];
+  const seen = new Set<number>();
+  let currentId = entite.id_entite_parent;
+
+  while (currentId) {
+    if (seen.has(currentId)) {
+      break;
+    }
+    seen.add(currentId);
+    const current = entiteMap.get(currentId);
+    if (!current) {
+      break;
+    }
+    labels.push(formatEntiteLabel(current));
+    currentId = current.id_entite_parent;
+  }
+
+  return labels;
+}
+
+export function formatHierarchyOptionLabel(
+  entite: EntiteStructure,
+  entites: EntiteStructure[],
+): string {
+  const baseLabel = formatEntiteLabel(entite);
+  if (entite.type_entite === "COMPOSANTE") {
+    return baseLabel;
+  }
+
+  const duplicateCount = entites.filter(
+    (candidate) =>
+      candidate.type_entite === entite.type_entite &&
+      normalizeLabel(candidate.nom) === normalizeLabel(entite.nom),
+  ).length;
+
+  if (duplicateCount <= 1) {
+    return baseLabel;
+  }
+
+  const ancestorLabels = getAncestorLabels(entite, buildEntiteMap(entites)).slice(0, 2);
+  return ancestorLabels.length > 0 ? `${baseLabel} • ${ancestorLabels.join(" / ")}` : baseLabel;
 }
 
 function getLineageForEntite(

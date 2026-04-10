@@ -36,9 +36,9 @@ export function FilterBar({ title, fields, hasActiveFilters, onReset, className 
   return (
     <div className={`rounded-xl border border-slate-200 bg-white p-4 shadow-sm ${className ?? ""}`.trim()}>
       {title && <h3 className="mb-3 text-sm font-semibold text-slate-900">{title}</h3>}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         {fields.map((field) => (
-          <div key={field.key}>
+          <div key={field.key} className="min-w-0">
             <label className="mb-1 block text-xs font-medium text-slate-600">{field.label}</label>
             {field.type === "search" ? (
               <input

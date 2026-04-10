@@ -26,6 +26,8 @@ import {
   EMPTY_HIERARCHY_FILTERS,
   HIERARCHY_LEVELS,
   type HierarchyFilters,
+  formatEntiteLabel,
+  formatHierarchyOptionLabel,
   getFilteredEntites,
   getHierarchyOptions,
   updateHierarchyFilters,
@@ -83,11 +85,6 @@ const typeBadgeClass: Record<EntiteStructure["type_entite"], string> = {
   NIVEAU: "bg-violet-100 text-violet-700",
 };
 
-const formatEntiteLabel = (entite: Pick<EntiteStructure, "nom" | "type_entite" | "code_composante">) =>
-  entite.type_entite === "COMPOSANTE" && entite.code_composante
-    ? `${entite.nom} (${entite.code_composante})`
-    : entite.nom;
-
 export function ManageStructures({
   userRole,
   currentYear,
@@ -130,7 +127,6 @@ export function ManageStructures({
       list = list.filter(
         (entite) =>
           entite.nom.toLowerCase().includes(normalizedSearch) ||
-          String(entite.id_entite).includes(normalizedSearch) ||
           entite.type_entite.toLowerCase().includes(normalizedSearch) ||
           entite.code_composante?.toLowerCase().includes(normalizedSearch),
       );
@@ -427,55 +423,56 @@ export function ManageStructures({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <FilterBar
+        title={`Filtres (${currentYear.year})`}
+        fields={[
+          {
+            key: "search",
+            label: "Recherche",
+            type: "search",
+            value: search,
+            onChange: (value) => setSearch(value),
+            placeholder: "Nom, type ou code de structure...",
+          },
+          ...HIERARCHY_LEVELS.map((level) => {
+            const options = hierarchyOptions[level.key];
+            return {
+              key: level.key,
+              label: level.label,
+              type: "select" as const,
+              value: hierarchyFilters[level.key],
+              onChange: (value: string) =>
+                setHierarchyFilters((prev) => updateHierarchyFilters(prev, level.key, value)),
+              disabled: options.length === 0,
+              options: [
+                { value: "", label: HIERARCHY_EMPTY_LABELS[level.key] },
+                ...options.map((entite) => ({
+                  value: String(entite.id_entite),
+                  label: formatHierarchyOptionLabel(entite, yearEntites),
+                })),
+              ],
+            };
+          }),
+          {
+            key: "type",
+            label: "Type",
+            type: "select",
+            value: filterType,
+            onChange: (value) => setFilterType(value),
+            options: TYPE_FILTER_OPTIONS,
+          },
+        ]}
+        hasActiveFilters={hasActiveFilters}
+        onReset={resetFilters}
+      />
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-4 border-b border-slate-200 bg-slate-50">
             <h2 className="font-medium text-slate-900">Structures ({currentYear.year})</h2>
-            <FilterBar
-              className="mt-3 border-none bg-transparent p-0 shadow-none"
-              fields={[
-                {
-                  key: "search",
-                  label: "Recherche",
-                  type: "search",
-                  value: search,
-                  onChange: (value) => setSearch(value),
-                  placeholder: "Nom, type ou ID de structure...",
-                },
-                ...HIERARCHY_LEVELS.map((level) => {
-                  const options = hierarchyOptions[level.key];
-                  return {
-                    key: level.key,
-                    label: level.label,
-                    type: "select" as const,
-                    value: hierarchyFilters[level.key],
-                    onChange: (value: string) =>
-                      setHierarchyFilters((prev) => updateHierarchyFilters(prev, level.key, value)),
-                    disabled: options.length === 0,
-                    options: [
-                      { value: "", label: HIERARCHY_EMPTY_LABELS[level.key] },
-                      ...options.map((entite) => ({
-                        value: String(entite.id_entite),
-                        label:
-                          entite.type_entite === "COMPOSANTE" && entite.code_composante
-                            ? `${entite.nom} (${entite.code_composante})`
-                            : entite.nom,
-                      })),
-                    ],
-                  };
-                }),
-                {
-                  key: "type",
-                  label: "Type",
-                  type: "select",
-                  value: filterType,
-                  onChange: (value) => setFilterType(value),
-                  options: TYPE_FILTER_OPTIONS,
-                },
-              ]}
-              hasActiveFilters={hasActiveFilters}
-              onReset={resetFilters}
-            />
+            <p className="mt-1 text-sm text-slate-500">
+              {filteredList.length} structure{filteredList.length > 1 ? "s" : ""} affichée{filteredList.length > 1 ? "s" : ""}.
+            </p>
           </div>
           <ul className="max-h-[50vh] overflow-y-auto divide-y divide-slate-100">
             {filteredList.length === 0 ? (
@@ -499,7 +496,7 @@ export function ManageStructures({
           </ul>
         </div>
 
-        <div className="lg:col-span-2 space-y-6">
+        <div className="xl:col-span-2 space-y-6">
           {selectedId === null ? (
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-10 text-center text-slate-500">
               <FileText className="w-12 h-12 mx-auto mb-3 text-slate-300" />
@@ -521,10 +518,6 @@ export function ManageStructures({
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${typeBadgeClass[detail.type_entite]}`}>
                         {TYPE_LABELS[detail.type_entite] ?? detail.type_entite}
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
-                        <Hash className="h-3.5 w-3.5" />
-                        ID {detail.id_entite}
                       </span>
                       {detail.code_composante && (
                         <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
@@ -567,7 +560,6 @@ export function ManageStructures({
                     <DetailField label="Nom de la structure" value={detail.nom} />
                     <DetailField label="Type" value={TYPE_LABELS[detail.type_entite] ?? detail.type_entite} />
                     <DetailField label="Année universitaire" value={currentYear.year} />
-                    <DetailField label="ID structure" value={String(detail.id_entite)} />
                     <DetailField
                       label="Rattachement direct"
                       value={parentEntite ? formatEntiteLabel(parentEntite) : "Aucune structure parente"}
