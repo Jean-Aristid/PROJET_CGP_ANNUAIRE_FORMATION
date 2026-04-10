@@ -15,6 +15,7 @@ import {
 import { UserRole, AcademicYear, EntiteStructure } from "../types";
 import { apiFetch } from "../lib/api";
 import { FilterBar } from "./ui/filter-bar";
+import { useConfirmAction } from "./ui/use-confirm-action";
 import { readQueryParam, writeQueryParams } from "../lib/url-state";
 import {
   Dialog,
@@ -159,6 +160,7 @@ export function ErrorReports({
   currentUserId,
   onNavigate,
 }: ErrorReportsProps) {
+  const { confirm, confirmationDialog } = useConfirmAction();
   const [reports, setReports] = useState<ApiSignalement[]>([]);
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -251,6 +253,13 @@ export function ErrorReports({
       setError("La description est obligatoire");
       return;
     }
+    const confirmed = await confirm({
+      title: "Envoyer ce signalement ?",
+      description: "Le signalement sera enregistré et transmis aux personnes responsables du périmètre concerné.",
+      confirmLabel: "Envoyer le signalement",
+      variant: "warning",
+    });
+    if (!confirmed) return;
     setLoading(true);
     setError(null);
     try {
@@ -276,6 +285,14 @@ export function ErrorReports({
 
   const handleTake = async (id: number) => {
     if (!authLogin) return;
+    const report = reports.find((item) => item.id_signalement === id);
+    const confirmed = await confirm({
+      title: "Prendre en charge ce signalement ?",
+      description: `Le signalement #${id}${report?.entite_nom ? ` sur ${report.entite_nom}` : ""} passera au statut "En cours".`,
+      confirmLabel: "Prendre en charge",
+      variant: "warning",
+    });
+    if (!confirmed) return;
     setLoading(true);
     setError(null);
     try {
@@ -297,6 +314,14 @@ export function ErrorReports({
       setError("Le commentaire de clôture est obligatoire");
       return;
     }
+    const report = reports.find((item) => item.id_signalement === id);
+    const confirmed = await confirm({
+      title: "Clôturer ce signalement ?",
+      description: `Le signalement #${id}${report?.entite_nom ? ` sur ${report.entite_nom}` : ""} sera clôturé avec votre commentaire.`,
+      confirmLabel: "Clôturer",
+      variant: "warning",
+    });
+    if (!confirmed) return;
     setLoading(true);
     setError(null);
     try {
@@ -317,6 +342,14 @@ export function ErrorReports({
 
   const handleEscalade = async (id: number) => {
     if (!authLogin) return;
+    const report = reports.find((item) => item.id_signalement === id);
+    const confirmed = await confirm({
+      title: "Escalader ce signalement ?",
+      description: `Le signalement #${id}${report?.entite_nom ? ` sur ${report.entite_nom}` : ""} sera transmis aux services centraux.`,
+      confirmLabel: "Escalader",
+      variant: "danger",
+    });
+    if (!confirmed) return;
     setLoading(true);
     setError(null);
     try {
@@ -589,6 +622,7 @@ export function ErrorReports({
           </div>
         )}
       </div>
+      {confirmationDialog}
     </div>
   );
 }

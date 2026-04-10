@@ -1,4 +1,8 @@
-export const STANDARD_WORKBOOK_VERSION = "CGP_STANDARD_V1";
+export const STANDARD_WORKBOOK_VERSION = "CGP_STANDARD_V2";
+export const STANDARD_WORKBOOK_SUPPORTED_VERSIONS = [
+  STANDARD_WORKBOOK_VERSION,
+  "CGP_STANDARD_V1",
+] as const;
 
 export const STANDARD_WORKBOOK_COLUMNS = {
   roles: [
@@ -10,12 +14,14 @@ export const STANDARD_WORKBOOK_COLUMNS = {
     "est_administratif",
     "est_transverse",
     "source_id_composante",
+    "source_composante_name",
   ],
   structures: [
     "source_id_entite",
     "source_parent_id_entite",
     "type_entite",
     "nom",
+    "source_path",
     "tel_service",
     "bureau_service",
     "code_composante",
@@ -50,13 +56,20 @@ export const STANDARD_WORKBOOK_COLUMNS = {
     "source_id_affectation_n_plus_1",
     "user_login",
     "id_role",
+    "role_label",
     "source_id_entite",
+    "source_entite_name",
+    "source_entite_path",
+    "n_plus_1_user_login",
     "date_debut",
     "date_fin",
   ],
   contacts: [
     "source_id_contact_role",
     "source_id_affectation",
+    "user_login",
+    "id_role",
+    "source_entite_name",
     "email_fonctionnelle",
     "type_email",
     "telephone",
@@ -68,6 +81,8 @@ export const STANDARD_WORKBOOK_COLUMNS = {
     "delegataire_login",
     "source_id_entite",
     "id_role",
+    "role_label",
+    "source_entite_name",
     "type_droit",
     "date_debut",
     "date_fin",
@@ -80,6 +95,7 @@ export const STANDARD_WORKBOOK_COLUMNS = {
     "cloture_par_login",
     "user_cible_login",
     "source_id_entite_cible",
+    "source_entite_name",
     "description",
     "type_signalement",
     "escalade_sc",
@@ -93,6 +109,7 @@ export const STANDARD_WORKBOOK_COLUMNS = {
   organigrammes: [
     "source_id_organigramme",
     "source_id_entite_racine",
+    "source_entite_racine_name",
     "generated_by_login",
     "generated_at",
     "est_fige",
@@ -210,9 +227,9 @@ export function parseStandardWorkbookXml(content: string): StandardWorkbookPaylo
   });
 
   const formatVersion = meta.format_version || STANDARD_WORKBOOK_VERSION;
-  if (formatVersion !== STANDARD_WORKBOOK_VERSION) {
+  if (!STANDARD_WORKBOOK_SUPPORTED_VERSIONS.includes(formatVersion as (typeof STANDARD_WORKBOOK_SUPPORTED_VERSIONS)[number])) {
     throw new Error(
-      `Version de fichier non supportée (${formatVersion}). Version attendue: ${STANDARD_WORKBOOK_VERSION}.`,
+      `Version de fichier non supportée (${formatVersion}). Versions acceptées: ${STANDARD_WORKBOOK_SUPPORTED_VERSIONS.join(", ")}.`,
     );
   }
 

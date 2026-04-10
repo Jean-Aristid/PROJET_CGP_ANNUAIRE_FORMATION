@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { apiFetch } from "../lib/api";
 import { downloadBase64File } from "../lib/standard-workbook";
+import { useConfirmAction } from "./ui/use-confirm-action";
 
 interface YearManagementProps {
   currentYear: AcademicYear;
@@ -67,6 +68,7 @@ export function YearManagement({
   onRefresh,
   onNavigateToImport,
 }: YearManagementProps) {
+  const { confirm, confirmationDialog } = useConfirmAction();
   const [years, setYears] = useState<ManagedYear[]>([]);
   const [selectedSourceYearId, setSelectedSourceYearId] = useState<string>(currentYear.id);
   const [sourceEntites, setSourceEntites] = useState<EntiteStructure[]>([]);
@@ -187,6 +189,16 @@ export function YearManagement({
       setError("Sélectionnez au moins une structure à recopier.");
       return;
     }
+    const confirmed = await confirm({
+      title: "Créer cette année universitaire ?",
+      description:
+        copyMode === "selected"
+          ? `Une nouvelle année sera créée à partir d'une sélection de ${selectedRootIds.size} structure(s), avec${copyAffectations ? "" : "out"} les affectations.`
+          : `Une nouvelle année sera créée à partir de l'année source, avec${copyAffectations ? "" : "out"} les affectations.`,
+      confirmLabel: "Créer l'année",
+      variant: "warning",
+    });
+    if (!confirmed) return;
 
     setLoading(true);
     setError(null);
@@ -227,6 +239,15 @@ export function YearManagement({
     statut: "EN_COURS" | "ARCHIVEE" | "PREPARATION",
   ) => {
     if (!authLogin) return;
+    const statusLabel =
+      statut === "EN_COURS" ? "passer en cours" : statut === "ARCHIVEE" ? "archiver" : "passer en préparation";
+    const confirmed = await confirm({
+      title: "Changer le statut de l'année ?",
+      description: `L'année ${yearId} va ${statusLabel}. Cette action impacte toute l'application.`,
+      confirmLabel: "Confirmer le changement",
+      variant: "warning",
+    });
+    if (!confirmed) return;
     setLoading(true);
     setError(null);
     try {
@@ -248,9 +269,13 @@ export function YearManagement({
 
   const handleDeleteYear = async (year: ManagedYear) => {
     if (!authLogin) return;
-    const confirmed = window.confirm(
-      `Supprimer l'année ${year.year} ? Un fichier de sauvegarde Excel standardisé sera téléchargé automatiquement avant suppression.`,
-    );
+    const confirmed = await confirm({
+      title: `Supprimer l'année ${year.year} ?`,
+      description:
+        "Un fichier de sauvegarde Excel standardisé sera téléchargé automatiquement avant suppression. Cette suppression reste une action lourde.",
+      confirmLabel: "Supprimer avec sauvegarde",
+      variant: "danger",
+    });
     if (!confirmed) return;
 
     setLoading(true);
@@ -570,6 +595,7 @@ export function YearManagement({
           </div>
         )}
       </div>
+      {confirmationDialog}
     </div>
   );
 }

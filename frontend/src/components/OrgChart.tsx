@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { User, UserRole, AcademicYear, EntiteStructure, canGenerateOrgChart } from "../types";
-import { Download, GitBranch, Lock, Unlock, FileDown, Eye } from "lucide-react";
+import { Download, GitBranch, Lock, Unlock, FileDown, Eye, ZoomIn, ZoomOut, ScanSearch } from "lucide-react";
 import { apiFetch } from "../lib/api";
 import {
   EMPTY_HIERARCHY_FILTERS,
@@ -11,6 +11,7 @@ import {
   getHierarchyOptions,
   updateHierarchyFilters,
 } from "../lib/entite-hierarchy";
+import { useConfirmAction } from "./ui/use-confirm-action";
 
 interface OrgChartProps {
   userRole: UserRole;
@@ -61,6 +62,10 @@ type ExportFormat = "PDF" | "CSV" | "JSON" | "SVG" | "PNG";
 type OrgChartViewMode = "structures" | "personnes";
 type ApiRole = { id: string; libelle: string };
 
+const MIN_TREE_ZOOM = 0.2;
+const MAX_TREE_ZOOM = 1.25;
+const TREE_ZOOM_STEP = 0.05;
+
 const HIERARCHY_EMPTY_LABELS: Record<keyof HierarchyFilters, string> = {
   composanteId: "Toutes les composantes",
   departementId: "Tous les départements",
@@ -69,7 +74,10 @@ const HIERARCHY_EMPTY_LABELS: Record<keyof HierarchyFilters, string> = {
   niveauId: "Tous les niveaux",
 };
 
-const levelLabel = (type: string | null) => {
+const levelLabel = (type: string | null, nodeName?: string | null) => {
+  if (type?.toLowerCase() === "departement" && nodeName?.trim().toLowerCase() === "sup galilée") {
+    return "École d’ingénieur";
+  }
   if (!type) return "Nœud";
   const normalized = type.toLowerCase();
   if (normalized === "composante") return "Composante";
@@ -81,7 +89,101 @@ const levelLabel = (type: string | null) => {
   return type;
 };
 
+function rankLevelLabel(label: string): number {
+  const normalized = label.trim().toUpperCase();
+  const match = normalized.match(/^([A-Z]+)\s*([0-9]+)?$/);
+  if (!match) return 9999;
+
+  const [, prefix, rawNumber] = match;
+  const number = rawNumber ? Number(rawNumber) : 0;
+  const prefixRank: Record<string, number> = {
+    L: 100,
+    BUT: 200,
+    CP: 250,
+    M: 300,
+    ING: 400,
+    DU: 500,
+    LP: 600,
+  };
+
+  return (prefixRank[prefix] ?? 9000) + number;
+}
+
+function collectDescendantLevels(node: ApiOrgNode): string[] {
+  if (node.kind === "personne") {
+    return [];
+  }
+
+  const labels = new Set<string>();
+
+  const walk = (current: ApiOrgNode) => {
+    if (current.kind === "personne") {
+      return;
+    }
+
+    if (current.type_entite === "NIVEAU" && current.nom.trim()) {
+      labels.add(current.nom.trim());
+    }
+
+    current.children?.forEach(walk);
+  };
+
+  walk(node);
+
+  return Array.from(labels).sort((left, right) => {
+    const rankDiff = rankLevelLabel(left) - rankLevelLabel(right);
+    if (rankDiff !== 0) {
+      return rankDiff;
+    }
+    return left.localeCompare(right, "fr", { sensitivity: "base" });
+  });
+}
+
+function getStructureLevelSummary(node: ApiOrgNode): string | null {
+  if (node.kind === "personne") {
+    return null;
+  }
+
+  if (node.type_entite !== "MENTION" && node.type_entite !== "PARCOURS") {
+    return null;
+  }
+
+  const levels = collectDescendantLevels(node);
+  if (levels.length === 0) {
+    return null;
+  }
+
+  const visible = levels.slice(0, 4).join(" • ");
+  const suffix = levels.length > 4 ? ` +${levels.length - 4}` : "";
+  return `Niveaux : ${visible}${suffix}`;
+}
+
+function getResponsableSummary(responsables?: ApiResponsable[]): string | null {
+  const names = (responsables ?? [])
+    .map((resp) => `${resp.prenom} ${resp.nom}`.trim())
+    .filter(Boolean);
+
+  if (names.length === 0) {
+    return null;
+  }
+
+  const visible = names.slice(0, 2).join(" • ");
+  const suffix = names.length > 2 ? ` +${names.length - 2}` : "";
+  return `Responsable : ${visible}${suffix}`;
+}
+
+function countTreeNodes(node: ApiOrgNode): number {
+  return 1 + (node.children ?? []).reduce((sum, child) => sum + countTreeNodes(child), 0);
+}
+
+function maxTreeBreadth(node: ApiOrgNode): number {
+  const ownBreadth = node.children?.length ?? 0;
+  const childBreadth = Math.max(0, ...(node.children ?? []).map(maxTreeBreadth));
+  return Math.max(ownBreadth, childBreadth);
+}
+
 export function OrgChart({ userRole, currentYear, authLogin, entites, currentUser }: OrgChartProps) {
+  const { confirm, confirmationDialog } = useConfirmAction();
   const [selectedRoot, setSelectedRoot] = useState<string>("");
   const [selectedType, setSelectedType] = useState<string>("ALL");
   const [rootSearch, setRootSearch] = useState("");
@@ -101,10 +203,57 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
   const [loading, setLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [treeZoom, setTreeZoom] = useState(1);
+  const [fitToWidth, setFitToWidth] = useState(true);
+  const [treeNaturalSize, setTreeNaturalSize] = useState({ width: 0, height: 0 });
+  const treeViewportRef = useRef<HTMLDivElement | null>(null);
+  const treeContentRef = useRef<HTMLDivElement | null>(null);
 
   const canGenerate = canGenerateOrgChart(userRole);
   const canFreeze = userRole === "services-centraux";
   const canGenerateAllRoots = userRole === "services-centraux";
+
+  const clampTreeZoom = (value: number) =>
+    Math.min(MAX_TREE_ZOOM, Math.max(MIN_TREE_ZOOM, Number(value.toFixed(2))));
+
+  const setManualTreeZoom = (value: number) => {
+    setFitToWidth(false);
+    setTreeZoom(clampTreeZoom(value));
+  };
+
+  const measureTree = () => {
+    const content = treeContentRef.current;
+    if (!content) {
+      return null;
+    }
+
+    const width = Math.ceil(content.scrollWidth);
+    const height = Math.ceil(content.scrollHeight);
+    if (!width || !height) {
+      return null;
+    }
+
+    setTreeNaturalSize((current) =>
+      current.width === width && current.height === height ? current : { width, height },
+    );
+
+    return { width, height };
+  };
+
+  const updateFitToWidthZoom = () => {
+    const viewport = treeViewportRef.current;
+    const size = measureTree();
+    if (!viewport || !size) {
+      return;
+    }
+
+    const rect = viewport.getBoundingClientRect();
+    const availableWidth = Math.max(viewport.clientWidth - 32, 160);
+    const availableHeight = Math.max(window.innerHeight - rect.top - 80, 240);
+    const widthRatio = availableWidth / size.width;
+    const heightRatio = availableHeight / size.height;
+    setTreeZoom(clampTreeZoom(Math.min(widthRatio, heightRatio, 1)));
+  };
 
   const entiteMap = useMemo(() => {
     const map = new Map<number, EntiteStructure>();
@@ -115,6 +264,13 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
     () => getHierarchyOptions(entites, hierarchyFilters, currentYear.id),
     [entites, hierarchyFilters, currentYear.id],
   );
+  const compactTree = useMemo(() => {
+    if (!tree) {
+      return false;
+    }
+
+    return countTreeNodes(tree) >= 28 || maxTreeBreadth(tree) >= 5;
+  }, [tree]);
 
   const isDescendant = (candidateId: number, ancestorId: number): boolean => {
     let current = entiteMap.get(candidateId);
@@ -160,6 +316,52 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
       setSelectedRoot(rootOptions[0]?.id_entite ? String(rootOptions[0].id_entite) : "");
     }
   }, [rootOptions, selectedRoot]);
+
+  useEffect(() => {
+    if (!tree) {
+      return;
+    }
+
+    const rafId = window.requestAnimationFrame(() => {
+      const size = measureTree();
+      if (fitToWidth && size) {
+        updateFitToWidthZoom();
+      }
+    });
+
+    const viewport = treeViewportRef.current;
+    const content = treeContentRef.current;
+    const observer =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => {
+            measureTree();
+            if (fitToWidth) {
+              updateFitToWidthZoom();
+            }
+          })
+        : null;
+
+    if (viewport && observer) {
+      observer.observe(viewport);
+    }
+    if (content && observer) {
+      observer.observe(content);
+    }
+
+    const handleResize = () => {
+      measureTree();
+      if (fitToWidth) {
+        updateFitToWidthZoom();
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      observer?.disconnect();
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [tree, fitToWidth, viewMode, selectedOrgaId]);
 
   const filteredEntiteIds = useMemo(() => {
     const deepestEntiteId = getDeepestSelectedEntiteId(hierarchyFilters);
@@ -233,6 +435,14 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
 
   const handleGenerate = async () => {
     if (!authLogin || !selectedRoot) return;
+    const root = rootOptions.find((entite) => String(entite.id_entite) === selectedRoot);
+    const confirmed = await confirm({
+      title: "Générer cet organigramme ?",
+      description: `Une nouvelle génération sera enregistrée pour ${root?.nom ?? `la racine #${selectedRoot}`}.`,
+      confirmLabel: "Générer",
+      variant: "warning",
+    });
+    if (!confirmed) return;
     setLoading(true);
     setError(null);
     try {
@@ -336,6 +546,17 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
     estFige: boolean,
   ) => {
     if (!authLogin) return;
+    const target =
+      organigrammes.find((item) => item.id_organigramme === organigrammeId) ??
+      (orgaMeta?.id_organigramme === organigrammeId ? orgaMeta : null);
+    const targetRoot = target ? entiteMap.get(target.id_entite_racine) : null;
+    const confirmed = await confirm({
+      title: estFige ? "Figer cet organigramme ?" : "Défiger cet organigramme ?",
+      description: `${targetRoot?.nom ?? `L'organigramme #${organigrammeId}`} sera ${estFige ? "figé" : "défigé"}.`,
+      confirmLabel: estFige ? "Figer" : "Défiger",
+      variant: estFige ? "warning" : "danger",
+    });
+    if (!confirmed) return;
     setLoading(true);
     setError(null);
     try {
@@ -676,7 +897,7 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
               {rootOptions.length === 0 && <option value="">Aucune structure</option>}
               {rootOptions.map((entite) => (
                 <option key={entite.id_entite} value={entite.id_entite}>
-                  #{entite.id_entite} — {entite.nom} ({entite.type_entite})
+                  #{entite.id_entite} — {entite.nom} ({levelLabel(entite.type_entite, entite.nom)})
                 </option>
               ))}
             </select>
@@ -827,16 +1048,94 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
       </div>
 
       {tree ? (
-        <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-200 overflow-x-auto">
-          {viewMode === "personnes" && tree.kind !== "personne" ? (
-            <div className="min-w-max pb-6 flex gap-8">
-              {(tree.children ?? []).map((child) => (
-                <OrgNode key={child.id_node} node={child} level={0} />
-              ))}
+        <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-200">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+            <div className="text-sm text-slate-500">
+              Affichage de l’arbre à {Math.round(treeZoom * 100)}%
+              {fitToWidth ? " · ajusté à l’écran" : ""}
             </div>
-          ) : (
-            <div className="min-w-max pb-6"><OrgNode node={tree} level={0} /></div>
-          )}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setManualTreeZoom(treeZoom - TREE_ZOOM_STEP)}
+                className="px-3 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2"
+                disabled={treeZoom <= MIN_TREE_ZOOM}
+              >
+                <ZoomOut className="w-4 h-4" />
+                Réduire
+              </button>
+              <button
+                type="button"
+                onClick={() => setManualTreeZoom(treeZoom + TREE_ZOOM_STEP)}
+                className="px-3 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2"
+                disabled={treeZoom >= MAX_TREE_ZOOM}
+              >
+                <ZoomIn className="w-4 h-4" />
+                Agrandir
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFitToWidth(false);
+                  setTreeZoom(1);
+                }}
+                className="px-3 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                100%
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFitToWidth(true);
+                  window.requestAnimationFrame(() => updateFitToWidthZoom());
+                }}
+                className="px-3 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-lg transition-colors flex items-center gap-2"
+              >
+                <ScanSearch className="w-4 h-4" />
+                Ajuster à l’écran
+              </button>
+            </div>
+          </div>
+
+          <div
+            ref={treeViewportRef}
+            className="overflow-auto rounded-xl border border-slate-200 bg-slate-50/40 p-4 max-h-[72vh]"
+          >
+            <div className="min-w-max">
+              <div
+                className="relative shrink-0"
+                style={{
+                  width: treeNaturalSize.width
+                    ? `${Math.ceil(treeNaturalSize.width * treeZoom)}px`
+                    : undefined,
+                  height: treeNaturalSize.height
+                    ? `${Math.ceil(treeNaturalSize.height * treeZoom)}px`
+                    : undefined,
+                }}
+              >
+                <div
+                  ref={treeContentRef}
+                  style={{
+                    width: treeNaturalSize.width ? `${treeNaturalSize.width}px` : "fit-content",
+                    transform: `scale(${treeZoom})`,
+                    transformOrigin: "top left",
+                  }}
+                >
+                  {viewMode === "personnes" && tree.kind !== "personne" ? (
+                    <div className={`min-w-max pb-6 flex ${compactTree ? "gap-4" : "gap-8"}`}>
+                      {(tree.children ?? []).map((child) => (
+                        <OrgNode key={child.id_node} node={child} level={0} compact={compactTree} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="min-w-max pb-6">
+                      <OrgNode node={tree} level={0} compact={compactTree} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
@@ -962,7 +1261,7 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
                         {organigramme.rootName}
                       </div>
                       <div className="text-xs text-slate-500 mt-1">
-                        #{organigramme.id_entite_racine} · {levelLabel(organigramme.rootType)}
+                        #{organigramme.id_entite_racine} · {levelLabel(organigramme.rootType, organigramme.rootName)}
                         {organigramme.rootCode ? ` · code ${organigramme.rootCode}` : ""}
                       </div>
                     </div>
@@ -1068,14 +1367,17 @@ export function OrgChart({ userRole, currentYear, authLogin, entites, currentUse
           ))}
         </div>
       </div>
+      {confirmationDialog}
     </div>
   );
 }
 
-function OrgNode({ node, level = 0 }: { node: ApiOrgNode; level?: number }) {
+function OrgNode({ node, level = 0, compact = false }: { node: ApiOrgNode; level?: number; compact?: boolean }) {
   const [expanded, setExpanded] = useState(true);
   const [hovered, setHovered] = useState(false);
   const isPersonNode = node.kind === "personne";
+  const structureLevelSummary = getStructureLevelSummary(node);
+  const structureResponsableSummary = isPersonNode ? null : getResponsableSummary(node.responsables);
 
   const colorVariants: Record<number, { box: string; badge: string; connector: string }> = {
     0: { box: "bg-indigo-600 border-indigo-700 text-white",   badge: "bg-indigo-800/40 text-indigo-100", connector: "#6366f1" },
@@ -1095,30 +1397,54 @@ function OrgNode({ node, level = 0 }: { node: ApiOrgNode; level?: number }) {
   const hasPersonDetails = isPersonNode && Boolean(
     node.structure_nom || node.email_institutionnel || node.email_secondaire,
   );
+  const childCount = node.children?.length ?? 0;
+  const compactNode = compact || childCount >= 4 || level >= 2;
+  const gapClass = compactNode ? (childCount >= 6 ? "gap-2" : "gap-3") : "gap-6";
+  const nodeBoxClass = compactNode
+    ? "px-3 py-2 rounded-lg min-w-[140px] max-w-[200px]"
+    : "px-4 py-2.5 rounded-xl min-w-[180px] max-w-[260px]";
+  const titleClass = compactNode ? "font-semibold text-[13px] leading-tight" : "font-semibold text-sm leading-tight";
+  const badgeClass = compactNode ? "inline-block mt-1 px-2 py-0.5 rounded-full text-[9px] font-medium" : "inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-medium";
+  const summaryClass = compactNode ? "mt-1 text-[10px] leading-tight text-white/90" : "mt-1 text-[11px] leading-tight text-white/90";
+  const responsableClass = compactNode ? "mt-1 text-[10px] leading-tight font-medium text-white/95" : "mt-1 text-[11px] leading-tight font-medium text-white/95";
+  const childrenOffsetClass = compactNode ? "mt-6" : "mt-8";
+  const connectorOffsetClass = compactNode ? "-translate-y-3" : "-translate-y-4";
+  const connectorHeightClass = compactNode ? "h-3" : "h-4";
+  const expandIndicatorClass = compactNode ? "-bottom-2 w-4 h-4 text-[10px]" : "-bottom-2.5 w-5 h-5 text-xs";
 
   return (
     <div className="flex flex-col items-center">
       {/* Node box */}
       <div className="relative">
         <div
-          className={`relative px-4 py-2.5 rounded-xl border-2 shadow-md cursor-pointer select-none transition-all duration-150
+          className={`relative border-2 shadow-md cursor-pointer select-none transition-all duration-150
             ${box}
             ${hovered ? "scale-105 shadow-lg z-10" : ""}
-            min-w-[160px] max-w-[220px] text-center`}
+            ${nodeBoxClass} text-center`}
           onClick={() => hasChildren && setExpanded((v) => !v)}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
           title={hasChildren ? (expanded ? "Réduire" : "Développer") : undefined}
         >
           {/* Name */}
-          <div className="font-semibold text-sm leading-tight truncate">{node.nom}</div>
+          <div className={titleClass}>{node.nom}</div>
           {/* Type badge */}
-          <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${badge}`}>
-            {isPersonNode ? node.role_label || "Personne" : levelLabel(node.type_entite)}
+          <span className={`${badgeClass} ${badge}`}>
+            {isPersonNode ? node.role_label || "Personne" : levelLabel(node.type_entite, node.nom)}
           </span>
+          {!isPersonNode && structureLevelSummary && (
+            <div className={summaryClass}>
+              {structureLevelSummary}
+            </div>
+          )}
+          {!isPersonNode && structureResponsableSummary && (
+            <div className={responsableClass}>
+              {structureResponsableSummary}
+            </div>
+          )}
           {/* Expand/collapse indicator */}
           {hasChildren && (
-            <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-500 text-xs shadow-sm z-10">
+            <div className={`absolute left-1/2 -translate-x-1/2 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-500 shadow-sm z-10 ${expandIndicatorClass}`}>
               {expanded ? "−" : "+"}
             </div>
           )}
@@ -1171,22 +1497,22 @@ function OrgNode({ node, level = 0 }: { node: ApiOrgNode; level?: number }) {
 
       {/* Children */}
       {hasChildren && expanded && (
-        <div className="flex justify-center mt-8">
+        <div className={`flex justify-center ${childrenOffsetClass}`}>
           <div className="relative">
             {/* Horizontal bar */}
             <div
-              className="absolute top-0 left-0 right-0 h-px -translate-y-4"
+              className={`absolute top-0 left-0 right-0 h-px ${connectorOffsetClass}`}
               style={{ background: connector }}
             />
-            <div className="flex gap-6">
+            <div className={`flex ${gapClass}`}>
               {node.children!.map((child) => (
                 <div key={child.id_node} className="relative flex flex-col items-center">
                   {/* Vertical connector down to child */}
                   <div
-                    className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-4 -translate-y-4"
+                    className={`absolute top-0 left-1/2 -translate-x-1/2 w-px ${connectorHeightClass} ${connectorOffsetClass}`}
                     style={{ background: connector }}
                   />
-                  <OrgNode node={child} level={level + 1} />
+                  <OrgNode node={child} level={level + 1} compact={compact} />
                 </div>
               ))}
             </div>

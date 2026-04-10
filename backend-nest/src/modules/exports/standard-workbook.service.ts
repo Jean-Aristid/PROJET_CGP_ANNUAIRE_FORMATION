@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
-export const STANDARD_WORKBOOK_VERSION = 'CGP_STANDARD_V1';
+export const STANDARD_WORKBOOK_VERSION = 'CGP_STANDARD_V2';
+export const STANDARD_WORKBOOK_SUPPORTED_VERSIONS = [
+  STANDARD_WORKBOOK_VERSION,
+  'CGP_STANDARD_V1',
+] as const;
 
 export const STANDARD_WORKBOOK_COLUMNS = {
   roles: [
@@ -13,12 +17,14 @@ export const STANDARD_WORKBOOK_COLUMNS = {
     'est_administratif',
     'est_transverse',
     'source_id_composante',
+    'source_composante_name',
   ],
   structures: [
     'source_id_entite',
     'source_parent_id_entite',
     'type_entite',
     'nom',
+    'source_path',
     'tel_service',
     'bureau_service',
     'code_composante',
@@ -53,13 +59,20 @@ export const STANDARD_WORKBOOK_COLUMNS = {
     'source_id_affectation_n_plus_1',
     'user_login',
     'id_role',
+    'role_label',
     'source_id_entite',
+    'source_entite_name',
+    'source_entite_path',
+    'n_plus_1_user_login',
     'date_debut',
     'date_fin',
   ],
   contacts: [
     'source_id_contact_role',
     'source_id_affectation',
+    'user_login',
+    'id_role',
+    'source_entite_name',
     'email_fonctionnelle',
     'type_email',
     'telephone',
@@ -71,6 +84,8 @@ export const STANDARD_WORKBOOK_COLUMNS = {
     'delegataire_login',
     'source_id_entite',
     'id_role',
+    'role_label',
+    'source_entite_name',
     'type_droit',
     'date_debut',
     'date_fin',
@@ -83,6 +98,7 @@ export const STANDARD_WORKBOOK_COLUMNS = {
     'cloture_par_login',
     'user_cible_login',
     'source_id_entite_cible',
+    'source_entite_name',
     'description',
     'type_signalement',
     'escalade_sc',
@@ -96,6 +112,7 @@ export const STANDARD_WORKBOOK_COLUMNS = {
   organigrammes: [
     'source_id_organigramme',
     'source_id_entite_racine',
+    'source_entite_racine_name',
     'generated_by_login',
     'generated_at',
     'est_fige',
@@ -124,6 +141,14 @@ export class StandardWorkbookService {
   }): Promise<StandardWorkbookPayload> {
     const year = await this.prisma.annee_universitaire.findUnique({
       where: { id_annee: BigInt(params.yearId) },
+      include: {
+        annee_universitaire: {
+          select: {
+            id_annee: true,
+            libelle: true,
+          },
+        },
+      },
     });
 
     if (!year) {
@@ -140,8 +165,14 @@ export class StandardWorkbookService {
       source_year_start: this.formatDate(year.date_debut),
       source_year_end: this.formatDate(year.date_fin),
       source_year_status: year.statut,
+      source_year_source_id: year.id_annee_source
+        ? String(year.id_annee_source)
+        : '',
+      source_year_source_label: year.annee_universitaire?.libelle ?? '',
       scope_entite_id: scope.rootEntite ? String(scope.rootEntite.id_entite) : '',
       scope_entite_name: scope.rootEntite?.nom ?? '',
+      scope_entite_type: scope.rootEntite?.type_entite ?? '',
+      scope_entite_path: scope.rootEntite?.path ?? '',
       exported_at: new Date().toISOString(),
       template: params.template ? 'true' : 'false',
     };
@@ -207,12 +238,20 @@ export class StandardWorkbookService {
         include: {
           utilisateur_delegation_delegant_idToutilisateur: true,
           utilisateur_delegation_delegataire_idToutilisateur: true,
+          role: true,
         },
       }),
       this.prisma.signalement.findMany({
-        where: {
-          id_entite_cible: { in: entiteBigInts },
-        },
+        where: scope.rootEntite
+          ? {
+              id_entite_cible: { in: entiteBigInts },
+            }
+          : {
+              OR: [
+                { id_entite_cible: { in: entiteBigInts } },
+                { id_entite_cible: null },
+              ],
+            },
         orderBy: { id_signalement: 'asc' },
         include: {
           utilisateur_signalement_auteur_idToutilisateur: true,
@@ -232,6 +271,13 @@ export class StandardWorkbookService {
         },
       }),
     ]);
+
+    const structureById = new Map(
+      structures.map((item) => [String(item.id_entite), item]),
+    );
+    const affectationById = new Map(
+      affectations.map((item) => [String(item.id_affectation), item]),
+    );
 
     const roleIds = new Set<string>();
     affectations.forEach((item) => roleIds.add(item.id_role));
@@ -285,12 +331,16 @@ export class StandardWorkbookService {
           est_administratif: item.est_administratif ? 'true' : 'false',
           est_transverse: item.est_transverse ? 'true' : 'false',
           source_id_composante: item.id_composante ? String(item.id_composante) : '',
+          source_composante_name: item.id_composante
+            ? this.getStructureDisplayName(structureById.get(String(item.id_composante))) ?? ''
+            : '',
         })),
         structures: structures.map((item) => ({
           source_id_entite: String(item.id_entite),
           source_parent_id_entite: item.id_entite_parent ? String(item.id_entite_parent) : '',
           type_entite: item.type_entite,
           nom: item.nom,
+          source_path: this.buildStructurePath(String(item.id_entite), structureById),
           tel_service: item.tel_service ?? '',
           bureau_service: item.bureau_service ?? '',
           code_composante: item.composante?.code_composante ?? '',
@@ -328,7 +378,17 @@ export class StandardWorkbookService {
             : '',
           user_login: item.utilisateur.login,
           id_role: item.id_role,
+          role_label: item.role?.libelle ?? '',
           source_id_entite: String(item.id_entite),
+          source_entite_name:
+            this.getStructureDisplayName(structureById.get(String(item.id_entite))) ?? '',
+          source_entite_path: this.buildStructurePath(
+            String(item.id_entite),
+            structureById,
+          ),
+          n_plus_1_user_login: item.id_affectation_n_plus_1
+            ? affectationById.get(String(item.id_affectation_n_plus_1))?.utilisateur?.login ?? ''
+            : '',
           date_debut: this.formatDate(item.date_debut),
           date_fin: this.formatDate(item.date_fin),
         })),
@@ -336,6 +396,10 @@ export class StandardWorkbookService {
           item.contact_role.map((contact) => ({
             source_id_contact_role: String(contact.id_contact_role),
             source_id_affectation: String(item.id_affectation),
+            user_login: item.utilisateur.login,
+            id_role: item.id_role,
+            source_entite_name:
+              this.getStructureDisplayName(structureById.get(String(item.id_entite))) ?? '',
             email_fonctionnelle: contact.email_fonctionnelle ?? '',
             type_email: contact.type_email ?? '',
             telephone: contact.telephone ?? '',
@@ -350,6 +414,9 @@ export class StandardWorkbookService {
             item.utilisateur_delegation_delegataire_idToutilisateur?.login ?? '',
           source_id_entite: String(item.id_entite),
           id_role: item.id_role ?? '',
+          role_label: item.role?.libelle ?? '',
+          source_entite_name:
+            this.getStructureDisplayName(structureById.get(String(item.id_entite))) ?? '',
           type_droit: item.type_droit ?? '',
           date_debut: this.formatDate(item.date_debut),
           date_fin: this.formatDate(item.date_fin),
@@ -368,6 +435,11 @@ export class StandardWorkbookService {
           source_id_entite_cible: item.id_entite_cible
             ? String(item.id_entite_cible)
             : '',
+          source_entite_name: item.id_entite_cible
+            ? this.getStructureDisplayName(
+                structureById.get(String(item.id_entite_cible)),
+              ) ?? ''
+            : '',
           description: item.description,
           type_signalement: item.type_signalement ?? '',
           escalade_sc: item.escalade_sc ? 'true' : 'false',
@@ -381,6 +453,8 @@ export class StandardWorkbookService {
         organigrammes: organigrammes.map((item) => ({
           source_id_organigramme: String(item.id_organigramme),
           source_id_entite_racine: String(item.id_entite_racine),
+          source_entite_racine_name:
+            this.getStructureDisplayName(structureById.get(String(item.id_entite_racine))) ?? '',
           generated_by_login: item.utilisateur?.login ?? '',
           generated_at: item.generated_at.toISOString(),
           est_fige: item.est_fige ? 'true' : 'false',
@@ -447,20 +521,31 @@ export class StandardWorkbookService {
         id_entite: true,
         id_entite_parent: true,
         nom: true,
+        type_entite: true,
       },
     });
 
     if (!entites.length) {
       return {
         scopeEntiteIds: new Set<number>(),
-        rootEntite: null as null | { id_entite: number; nom: string },
+        rootEntite: null as null | {
+          id_entite: number;
+          nom: string;
+          type_entite: string;
+          path: string;
+        },
       };
     }
 
     if (!entiteId) {
       return {
         scopeEntiteIds: new Set(entites.map((item) => Number(item.id_entite))),
-        rootEntite: null as null | { id_entite: number; nom: string },
+        rootEntite: null as null | {
+          id_entite: number;
+          nom: string;
+          type_entite: string;
+          path: string;
+        },
       };
     }
 
@@ -493,7 +578,12 @@ export class StandardWorkbookService {
 
     return {
       scopeEntiteIds,
-      rootEntite: { id_entite: Number(root.id_entite), nom: root.nom },
+      rootEntite: {
+        id_entite: Number(root.id_entite),
+        nom: root.nom,
+        type_entite: root.type_entite,
+        path: this.buildScopePath(Number(root.id_entite), entites),
+      },
     };
   }
 
@@ -545,5 +635,70 @@ export class StandardWorkbookService {
       return '';
     }
     return value.toISOString().slice(0, 10);
+  }
+
+  private getStructureDisplayName(
+    structure:
+      | {
+          nom: string;
+          type_entite?: string;
+          composante?: { code_composante: string | null } | null;
+        }
+      | null
+      | undefined,
+  ): string | null {
+    if (!structure) {
+      return null;
+    }
+
+    if (
+      structure.type_entite === 'COMPOSANTE' &&
+      structure.composante?.code_composante
+    ) {
+      return `${structure.nom} (${structure.composante.code_composante})`;
+    }
+
+    return structure.nom;
+  }
+
+  private buildStructurePath(
+    structureId: string,
+    structureById: Map<string, any>,
+  ): string {
+    const labels: string[] = [];
+    let current = structureById.get(structureId);
+
+    for (let depth = 0; depth < 16 && current; depth += 1) {
+      labels.unshift(this.getStructureDisplayName(current) ?? current.nom);
+      current = current.id_entite_parent
+        ? structureById.get(String(current.id_entite_parent))
+        : null;
+    }
+
+    return labels.join(' > ');
+  }
+
+  private buildScopePath(
+    entiteId: number,
+    entites: Array<{
+      id_entite: bigint;
+      id_entite_parent: bigint | null;
+      nom: string;
+    }>,
+  ): string {
+    const entiteMap = new Map(
+      entites.map((item) => [Number(item.id_entite), item]),
+    );
+    const labels: string[] = [];
+    let current = entiteMap.get(entiteId);
+
+    for (let depth = 0; depth < 16 && current; depth += 1) {
+      labels.unshift(current.nom);
+      current = current.id_entite_parent
+        ? entiteMap.get(Number(current.id_entite_parent))
+        : undefined;
+    }
+
+    return labels.join(' > ');
   }
 }

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { apiFetch } from "../lib/api";
 import { FilterBar } from "./ui/filter-bar";
+import { useConfirmAction } from "./ui/use-confirm-action";
 import { writeQueryParams } from "../lib/url-state";
 import {
   EMPTY_HIERARCHY_FILTERS,
@@ -87,6 +88,7 @@ export function Delegations({
   entites,
   currentAssignments,
 }: DelegationsProps) {
+  const { confirm, confirmationDialog } = useConfirmAction();
   const [delegations, setDelegations] = useState<ApiDelegation[]>([]);
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -299,6 +301,22 @@ export function Delegations({
       setError("Veuillez renseigner les champs requis");
       return;
     }
+
+    const delegatee = users.find((user) => String(user.id_user) === newDelegation.delegateeId);
+    const scope = createScopedEntites.find(
+      (entite) => String(entite.id_entite) === newDelegation.scopeEntite,
+    );
+    const rightLabel =
+      rightsOptions.find((right) => right.value === newDelegation.right)?.label ??
+      newDelegation.right;
+    const confirmed = await confirm({
+      title: "Créer cette délégation ?",
+      description: `Le droit "${rightLabel}" sera délégué à ${delegatee?.prenom ?? ""} ${delegatee?.nom ?? ""}`.trim() +
+        `${scope ? ` sur ${scope.nom}` : ""}.`,
+      confirmLabel: "Créer la délégation",
+      variant: "warning",
+    });
+    if (!confirmed) return;
 
     setLoading(true);
     setError(null);
@@ -649,6 +667,7 @@ export function Delegations({
           </div>
         )}
       </div>
+      {confirmationDialog}
     </div>
   );
 }

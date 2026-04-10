@@ -15,6 +15,7 @@ import type { CurrentUser } from '../../common/types/current-user';
 import { ROLE_IDS } from '../../auth/roles.constants';
 import {
   STANDARD_WORKBOOK_COLUMNS,
+  STANDARD_WORKBOOK_SUPPORTED_VERSIONS,
   STANDARD_WORKBOOK_VERSION,
   type StandardWorkbookPayload,
   type StandardWorkbookRow,
@@ -325,6 +326,7 @@ export class ImportsService {
     let targetYearId = payload.targetYearId ?? null;
     let targetYearLabel: string | null = null;
     let targetYearWillBeCreated = false;
+    let targetYearSourceId: bigint | null = null;
 
     if (createTargetYear) {
       const yearLabel =
@@ -359,15 +361,22 @@ export class ImportsService {
         });
         targetYearId = Number(createdYear.id_annee);
         targetYearLabel = createdYear.libelle;
+        targetYearSourceId = createdYear.id_annee_source;
       }
     } else if (targetYearId) {
       const existingYear = await tx.annee_universitaire.findUnique({
         where: { id_annee: BigInt(targetYearId) },
+        select: {
+          id_annee: true,
+          libelle: true,
+          id_annee_source: true,
+        },
       });
       if (!existingYear) {
         throw new NotFoundException("Année cible introuvable");
       }
       targetYearLabel = existingYear.libelle;
+      targetYearSourceId = existingYear.id_annee_source;
     }
 
     const previewItems: WorkbookPreviewItem[] = [];
@@ -400,6 +409,53 @@ export class ImportsService {
         status: 'create',
         detail: "Une nouvelle année sera créée à partir des métadonnées du classeur lors de l'import.",
       });
+    }
+
+    const sourceYearCandidate = await this.resolveWorkbookSourceYear(
+      tx,
+      workbook,
+      targetYearId,
+    );
+
+    if (
+      workbook.meta.source_year_source_id?.trim() ||
+      workbook.meta.source_year_source_label?.trim()
+    ) {
+      if (sourceYearCandidate) {
+        const sourceYearNeedsUpdate =
+          targetYearSourceId == null ||
+          targetYearSourceId !== sourceYearCandidate.id_annee;
+
+        pushItem({
+          sheet: 'meta',
+          sourceKey: 'source_year_source',
+          label: sourceYearCandidate.libelle,
+          status: sourceYearNeedsUpdate ? 'update' : 'reuse',
+          detail: sourceYearNeedsUpdate
+            ? `L'année cible sera rattachée à ${sourceYearCandidate.libelle} comme année source.`
+            : `L'année cible est déjà rattachée à ${sourceYearCandidate.libelle}.`,
+        });
+
+        if (apply && targetYearId && sourceYearNeedsUpdate) {
+          await tx.annee_universitaire.update({
+            where: { id_annee: BigInt(targetYearId) },
+            data: { id_annee_source: sourceYearCandidate.id_annee },
+          });
+          targetYearSourceId = sourceYearCandidate.id_annee;
+        }
+      } else {
+        pushItem({
+          sheet: 'meta',
+          sourceKey: 'source_year_source',
+          label:
+            workbook.meta.source_year_source_label?.trim() ||
+            workbook.meta.source_year_source_id?.trim() ||
+            'Année source',
+          status: 'warning',
+          detail:
+            "Le lien vers l'année source n'a pas pu être restauré automatiquement dans la base cible.",
+        });
+      }
     }
 
     const structureRows = this.sortStructureRows(workbook.sheets.structures);
@@ -1200,9 +1256,13 @@ export class ImportsService {
         '',
     ).trim();
 
-    if (formatVersion !== STANDARD_WORKBOOK_VERSION) {
+    if (
+      !STANDARD_WORKBOOK_SUPPORTED_VERSIONS.includes(
+        formatVersion as (typeof STANDARD_WORKBOOK_SUPPORTED_VERSIONS)[number],
+      )
+    ) {
       throw new BadRequestException(
-        `Format de classeur non supporté. Version attendue: ${STANDARD_WORKBOOK_VERSION}.`,
+        `Format de classeur non supporté. Versions acceptées: ${STANDARD_WORKBOOK_SUPPORTED_VERSIONS.join(', ')}.`,
       );
     }
 
@@ -1234,6 +1294,43 @@ export class ImportsService {
       ),
       sheets,
     };
+  }
+
+  private async resolveWorkbookSourceYear(
+    tx: Prisma.TransactionClient,
+    workbook: StandardWorkbookPayload,
+    targetYearId: number | null,
+  ) {
+    const sourceYearSourceId = this.toBigInt(workbook.meta.source_year_source_id);
+    const sourceYearSourceLabel = this.emptyToNull(
+      workbook.meta.source_year_source_label,
+    );
+    const targetYearBigInt = targetYearId ? BigInt(targetYearId) : null;
+
+    if (sourceYearSourceId && sourceYearSourceId !== targetYearBigInt) {
+      const byId = await tx.annee_universitaire.findUnique({
+        where: { id_annee: sourceYearSourceId },
+        select: { id_annee: true, libelle: true },
+      });
+      if (byId) {
+        return byId;
+      }
+    }
+
+    if (sourceYearSourceLabel) {
+      const byLabel = await tx.annee_universitaire.findFirst({
+        where: {
+          libelle: sourceYearSourceLabel,
+          ...(targetYearBigInt ? { id_annee: { not: targetYearBigInt } } : {}),
+        },
+        select: { id_annee: true, libelle: true },
+      });
+      if (byLabel) {
+        return byLabel;
+      }
+    }
+
+    return null;
   }
 
   private filterWorkbookByScope(
@@ -1637,6 +1734,19 @@ export class ImportsService {
     if (!normalized) return fallback;
     const parsed = Number(normalized);
     return (Number.isFinite(parsed) ? parsed : fallback) as T;
+  }
+
+  private toBigInt(value: string | null | undefined): bigint | null {
+    const normalized = String(value ?? '').trim();
+    if (!normalized) {
+      return null;
+    }
+
+    try {
+      return BigInt(normalized);
+    } catch {
+      return null;
+    }
   }
 
   private parseDate(raw: string | null | undefined, fallback: Date) {

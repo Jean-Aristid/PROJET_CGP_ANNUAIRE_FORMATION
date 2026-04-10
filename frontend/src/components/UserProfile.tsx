@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { User, AcademicYear, UserRoleAssignment } from "../types";
 import { Mail, Phone, Building, Edit2, Save, X, Briefcase, Calendar } from "lucide-react";
 import { apiFetch } from "../lib/api";
+import { useConfirmAction } from "./ui/use-confirm-action";
 
 interface UserProfileProps {
   user: User;
@@ -37,6 +38,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export function UserProfile({ user, currentYear, authLogin, onUserUpdate }: UserProfileProps) {
+  const { confirm, confirmationDialog } = useConfirmAction();
   const [isEditing, setIsEditing] = useState(false);
   const [tempPhone, setTempPhone] = useState(user.phone || "");
   const [tempOffice, setTempOffice] = useState(user.office || "");
@@ -52,6 +54,13 @@ export function UserProfile({ user, currentYear, authLogin, onUserUpdate }: User
 
   const handleSave = async () => {
     if (!authLogin) return;
+    const confirmed = await confirm({
+      title: "Enregistrer ces modifications ?",
+      description: "Votre téléphone et votre bureau vont être mis à jour dans votre profil.",
+      confirmLabel: "Enregistrer",
+      variant: "warning",
+    });
+    if (!confirmed) return;
     setSaving(true);
     setError(null);
     try {
@@ -288,6 +297,7 @@ export function UserProfile({ user, currentYear, authLogin, onUserUpdate }: User
           <li>- Si vous constatez une erreur, utilisez le bouton "Signaler une erreur"</li>
         </ul>
       </div>
+      {confirmationDialog}
     </div>
   );
 }

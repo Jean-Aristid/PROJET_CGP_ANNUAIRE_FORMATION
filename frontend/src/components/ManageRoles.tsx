@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Shield, Check, X, FileText, AlertCircle, Plus } from "lucide-react";
 import { AcademicYear, UserRole, canRequestCustomRole, canReviewRoleRequests } from "../types";
 import { apiFetch } from "../lib/api";
+import { useConfirmAction } from "./ui/use-confirm-action";
 
 interface ManageRolesProps {
   currentYear: AcademicYear;
@@ -52,6 +53,7 @@ const getRoleLevel = (role: ApiRole) => role.niveauHierarchique;
 const isRoleGlobal = (role: ApiRole) => role.isGlobal;
 
 export function ManageRoles({ currentYear, authLogin, userRole }: ManageRolesProps) {
+  const { confirm, confirmationDialog } = useConfirmAction();
   const [roles, setRoles] = useState<ApiRole[]>([]);
   const [requests, setRequests] = useState<ApiRoleRequest[]>([]);
   const [loading, setLoading] = useState(false);
@@ -113,6 +115,13 @@ export function ManageRoles({ currentYear, authLogin, userRole }: ManageRolesPro
       setError("Veuillez renseigner le rôle et la description");
       return;
     }
+    const confirmed = await confirm({
+      title: "Soumettre cette demande de rôle ?",
+      description: `La demande pour le rôle "${newRequest.roleName.trim()}" sera transmise pour validation.`,
+      confirmLabel: "Soumettre la demande",
+      variant: "warning",
+    });
+    if (!confirmed) return;
 
     setLoading(true);
     setError(null);
@@ -139,6 +148,16 @@ export function ManageRoles({ currentYear, authLogin, userRole }: ManageRolesPro
 
   const handleReviewRequest = async (request: ApiRoleRequest, statut: "VALIDEE" | "REFUSEE") => {
     if (!authLogin) return;
+    const confirmed = await confirm({
+      title: statut === "VALIDEE" ? "Valider cette demande ?" : "Refuser cette demande ?",
+      description:
+        statut === "VALIDEE"
+          ? `Le rôle "${request.role_propose}" sera créé et attribuable dans l'application.`
+          : `La demande pour le rôle "${request.role_propose}" sera refusée.`,
+      confirmLabel: statut === "VALIDEE" ? "Valider" : "Refuser",
+      variant: statut === "VALIDEE" ? "warning" : "danger",
+    });
+    if (!confirmed) return;
     setLoading(true);
     setError(null);
     try {
@@ -420,6 +439,7 @@ export function ManageRoles({ currentYear, authLogin, userRole }: ManageRolesPro
           )}
         </div>
       </div>
+      {confirmationDialog}
     </div>
   );
 }

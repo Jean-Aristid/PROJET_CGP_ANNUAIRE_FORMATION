@@ -36,6 +36,7 @@ import {
   parseStandardWorkbookXml,
   type StandardWorkbookPayload,
 } from "../lib/standard-workbook";
+import { useConfirmAction } from "./ui/use-confirm-action";
 
 interface ImportExportProps {
   userRole: UserRole;
@@ -209,6 +210,7 @@ export function ImportExport({
   authLogin,
   entites,
 }: ImportExportProps) {
+  const { confirm, confirmationDialog } = useConfirmAction();
   const [importStep, setImportStep] = useState<"upload" | "review" | "done">("upload");
   const [importStatus, setImportStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [importMessage, setImportMessage] = useState("");
@@ -449,6 +451,17 @@ export function ImportExport({
 
   const handleWorkbookConfirm = async () => {
     if (!authLogin || !parsedWorkbook) return;
+    const targetLabel =
+      workbookPreviewSummary?.targetYearLabel ||
+      years.find((year) => String(year.id_annee) === workbookTargetYearId)?.libelle ||
+      currentYear.year;
+    const confirmed = await confirm({
+      title: "Confirmer l'import du classeur Excel ?",
+      description: `${workbookPreviewSummary?.total ?? workbookPreviewItems.length} action(s) seront appliquées dans l'année ${targetLabel}.`,
+      confirmLabel: "Lancer l'import",
+      variant: "warning",
+    });
+    if (!confirmed) return;
     setWorkbookLoading(true);
     setWorkbookError(null);
     setWorkbookMessage("");
@@ -598,6 +611,13 @@ export function ImportExport({
 
   const handleConfirmImport = async () => {
     if (!authLogin || parsedRows.length === 0) return;
+    const confirmed = await confirm({
+      title: "Valider cet import CSV ?",
+      description: `${countIncluded} ligne(s) sélectionnée(s) seront appliquées. Cela peut créer des utilisateurs et modifier les données existantes.`,
+      confirmLabel: "Importer les données",
+      variant: "warning",
+    });
+    if (!confirmed) return;
     const excludeIndices = previewItems.map((i) => i.rowIndex).filter((i) => !includedRows.has(i));
     setImportStatus("loading");
     setImportMessage("Import en cours...");
@@ -1316,6 +1336,7 @@ export function ImportExport({
           Les exports hérités sont réservés aux Services centraux ; ils sont donc masqués pour ce rôle.
         </div>
       )}
+      {confirmationDialog}
     </div>
   );
 }

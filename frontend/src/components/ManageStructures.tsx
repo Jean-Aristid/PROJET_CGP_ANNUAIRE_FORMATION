@@ -38,6 +38,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
+import { useConfirmAction } from "./ui/use-confirm-action";
 
 const TYPE_LABELS: Record<string, string> = {
   COMPOSANTE: "Composante (UFR / Institut / IUT)",
@@ -94,6 +95,7 @@ export function ManageStructures({
   authLogin,
   focusEntiteId,
 }: ManageStructuresProps) {
+  const { confirm, confirmationDialog } = useConfirmAction();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<ApiEntiteDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -292,13 +294,21 @@ export function ManageStructures({
 
   const handleSave = async () => {
     if (!authLogin || !selectedId || !detail) return;
-    setSaving(true);
-    setError(null);
     if (!form.nom?.trim()) {
       setError("Le nom de la structure est obligatoire");
-      setSaving(false);
       return;
     }
+
+    const confirmed = await confirm({
+      title: "Enregistrer cette fiche structure ?",
+      description: `La fiche de ${detail.nom} va être mise à jour pour l'année ${currentYear.year}.`,
+      confirmLabel: "Enregistrer",
+      variant: "warning",
+    });
+    if (!confirmed) return;
+
+    setSaving(true);
+    setError(null);
     try {
       const payload: Record<string, string | null | undefined> = {
         nom: form.nom,
@@ -815,6 +825,7 @@ export function ManageStructures({
           ) : null}
         </div>
       </div>
+      {confirmationDialog}
     </div>
   );
 }

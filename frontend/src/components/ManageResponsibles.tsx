@@ -38,6 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
+import { useConfirmAction } from "./ui/use-confirm-action";
 
 interface ManageResponsiblesProps {
   userRole: UserRole;
@@ -190,6 +191,7 @@ export function ManageResponsibles({
   authLogin,
   focusUserId,
 }: ManageResponsiblesProps) {
+  const { confirm, confirmationDialog } = useConfirmAction();
   const [responsibles, setResponsibles] = useState<PersonRow[]>([]);
   const [roles, setRoles] = useState<ApiRole[]>([]);
   const [loading, setLoading] = useState(false);
@@ -516,6 +518,13 @@ export function ManageResponsibles({
 
   const handleSaveEdit = async () => {
     if (!editingId || !formData || !authLogin) return;
+    const confirmed = await confirm({
+      title: "Enregistrer cette fiche responsable ?",
+      description: `Les informations de ${formData.prenom} ${formData.nom} vont être mises à jour.`,
+      confirmLabel: "Enregistrer",
+      variant: "warning",
+    });
+    if (!confirmed) return;
     setLoading(true);
     try {
       await apiFetch(`/users/${editingId}`, {
@@ -546,6 +555,13 @@ export function ManageResponsibles({
     if (!newUser.login.trim()) { setError("Le login est obligatoire"); return; }
     if (!newUser.nom.trim()) { setError("Le nom est obligatoire"); return; }
     if (!newUser.prenom.trim()) { setError("Le prénom est obligatoire"); return; }
+    const confirmed = await confirm({
+      title: "Créer ce responsable ?",
+      description: `La fiche ${newUser.prenom} ${newUser.nom} (${newUser.login}) va être créée${newUser.id_role && newUser.id_entite ? " avec son affectation initiale" : ""}.`,
+      confirmLabel: "Créer le responsable",
+      variant: "warning",
+    });
+    if (!confirmed) return;
     setError(null);
     setLoading(true);
     try {
@@ -623,6 +639,21 @@ export function ManageResponsibles({
       setError("Veuillez selectionner un role et une structure");
       return;
     }
+    const targetPerson = responsibles.find((person) => person.id === userId);
+    const roleLabel =
+      roleLabelMap.get(affectationForm.id_role) ||
+      getRoleLabel(affectationForm.id_role as UserRole) ||
+      affectationForm.id_role;
+    const entiteLabel =
+      entites.find((entite) => String(entite.id_entite) === affectationForm.id_entite)?.nom ||
+      affectationForm.id_entite;
+    const confirmed = await confirm({
+      title: "Ajouter cette affectation ?",
+      description: `${targetPerson?.name ?? "Ce responsable"} recevra le rôle "${roleLabel}" sur ${entiteLabel}.`,
+      confirmLabel: "Ajouter l'affectation",
+      variant: "warning",
+    });
+    if (!confirmed) return;
     setLoading(true);
     try {
       await apiFetch("/affectations", {
@@ -652,6 +683,21 @@ export function ManageResponsibles({
       setError("Veuillez selectionner un role et une structure");
       return;
     }
+
+    const roleLabel =
+      roleLabelMap.get(editingAssignmentForm.id_role) ||
+      getRoleLabel(editingAssignmentForm.id_role as UserRole) ||
+      editingAssignmentForm.id_role;
+    const entiteLabel =
+      entites.find((entite) => String(entite.id_entite) === editingAssignmentForm.id_entite)?.nom ||
+      editingAssignmentForm.id_entite;
+    const confirmed = await confirm({
+      title: "Enregistrer cette affectation ?",
+      description: `${editAffectationTarget?.person.name ?? "Cette personne"} sera affecté(e) au rôle "${roleLabel}" sur ${entiteLabel}.`,
+      confirmLabel: "Enregistrer l'affectation",
+      variant: "warning",
+    });
+    if (!confirmed) return;
 
     setLoading(true);
     setError(null);
@@ -1264,6 +1310,7 @@ export function ManageResponsibles({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {confirmationDialog}
     </div>
   );
 }

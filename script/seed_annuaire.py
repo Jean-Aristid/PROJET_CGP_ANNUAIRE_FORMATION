@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
 """
-Lit files/assets/Annuaire.xlsx → génère script/annuaire_seed.sql
-Usage : python3 script/seed_annuaire.py
+Lit un Annuaire.xlsx ou un dossier de CSV → génère script/annuaire_seed.sql
+Usage :
+  python3 script/seed_annuaire.py
+  python3 script/seed_annuaire.py --csv-dir db-file-csv
 """
 
-import zipfile, xml.etree.ElementTree as ET, re, unicodedata
+import argparse
+import csv
+import re
+import unicodedata
+import zipfile
+import xml.etree.ElementTree as ET
+from collections import Counter
 from pathlib import Path
 
 BASE = Path(__file__).parent.parent
-XLSX = BASE / 'files' / 'assets' / 'Annuaire.xlsx'
-OUT  = BASE / 'script' / 'annuaire_seed.sql'
+DEFAULT_XLSX = BASE / 'files' / 'assets' / 'Annuaire.xlsx'
+DEFAULT_OUT = BASE / 'script' / 'annuaire_seed.sql'
+DOCKER_INIT_OUT = BASE / 'script' / 'db' / 'init' / '999_annuaire_seed.sql'
 
 NS = {'main': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
 
@@ -28,6 +37,12 @@ def slug(s):
     s = ''.join(c for c in s if not unicodedata.combining(c))
     s = re.sub(r'[^a-z0-9]+', '-', s)
     return s.strip('-') or 'user'
+
+def normalize_lookup_label(value):
+    value = unicodedata.normalize('NFKD', clean(value).lower())
+    value = ''.join(c for c in value if not unicodedata.combining(c))
+    value = re.sub(r'[^a-z0-9]+', ' ', value)
+    return value.strip()
 
 def genre_to_enum(civ):
     civ = clean(civ).upper()
@@ -60,6 +75,22 @@ def cycle_from_type(type_col, diplome):
     if 'licence' in d or 'but' in d or 'pass' in d: return 1
     if 'master' in d or 'ingenieur' in d: return 2
     return None
+
+def infer_virtual_department(code_comp, type_diplome, mail_fonc):
+    code_comp = clean(code_comp)
+    type_norm = normalize_lookup_label(type_diplome)
+    mail_norm = normalize_lookup_label(mail_fonc)
+
+    # In the provided Galilee CSV, the engineering school branch is modeled
+    # across multiple home departments. We materialize the school-level
+    # structural container so the whole engineering branch appears under
+    # "Sup Galilée" in the structure org chart.
+    if code_comp == '903' and (
+        type_norm == 'ingenieur' or 'sup galilee' in mail_norm
+    ):
+        return 'Sup Galilée'
+
+    return ''
 
 # ── Lecture XLSX ─────────────────────────────────────────────────────────────
 
@@ -107,6 +138,45 @@ def read_xlsx(path):
                 out.append([cols.get(i, '') for i in range(1, maxc + 1)])
             sheets_data[name] = out
     return sheets_data
+
+
+def read_csv_dir(csv_dir: Path):
+    sheets_data = {}
+    for csv_path in sorted(csv_dir.glob('*.csv')):
+        rows = []
+        with csv_path.open('r', encoding='utf-8-sig', newline='') as handle:
+            reader = csv.reader(handle)
+            for row in reader:
+                cleaned_row = [clean(cell) for cell in row]
+                while cleaned_row and cleaned_row[-1] == '':
+                    cleaned_row.pop()
+                rows.append(cleaned_row)
+        sheets_data[csv_path.stem] = rows
+    return sheets_data
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Génère un seed SQL depuis un Annuaire.xlsx ou un dossier de CSV.",
+    )
+    parser.add_argument(
+        '--xlsx',
+        type=Path,
+        default=DEFAULT_XLSX,
+        help=f'Chemin du fichier XLSX source (défaut: {DEFAULT_XLSX})',
+    )
+    parser.add_argument(
+        '--csv-dir',
+        type=Path,
+        help='Dossier contenant les CSV sources (ex: db-file-csv)',
+    )
+    parser.add_argument(
+        '--out',
+        type=Path,
+        default=DEFAULT_OUT,
+        help=f'Fichier SQL de sortie (défaut: {DEFAULT_OUT})',
+    )
+    return parser.parse_args()
 
 # ── Mapping rôles ─────────────────────────────────────────────────────────────
 
@@ -221,12 +291,27 @@ ROLES_REF = [
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    print(f'Lecture de {XLSX} ...')
-    sheets = read_xlsx(XLSX)
+    args = parse_args()
+    out_path = args.out.resolve()
+
+    if args.csv_dir:
+        csv_dir = args.csv_dir.resolve()
+        if not csv_dir.is_dir():
+            raise SystemExit(f'Dossier CSV introuvable : {csv_dir}')
+        print(f'Lecture des CSV depuis {csv_dir} ...')
+        sheets = read_csv_dir(csv_dir)
+        source_label = str(csv_dir)
+    else:
+        xlsx_path = args.xlsx.resolve()
+        if not xlsx_path.is_file():
+            raise SystemExit(f'Fichier XLSX introuvable : {xlsx_path}')
+        print(f'Lecture de {xlsx_path} ...')
+        sheets = read_xlsx(xlsx_path)
+        source_label = str(xlsx_path)
 
     lines = []
     lines += [
-        '-- Seed généré automatiquement depuis Annuaire.xlsx',
+        f'-- Seed généré automatiquement depuis {source_label}',
         '-- script/seed_annuaire.py',
         '',
         'BEGIN;',
@@ -322,6 +407,9 @@ def main():
     affectations = []
     contact_roles= []
     aff_seen     = set()  # (uid, role_id, entite_id) pour dédupliquer
+    supervisor_norms_by_function_norm = {}
+    role_level_by_id = {rid: niv for rid, _lib, niv, _gl, _adm, _tr in ROLES_REF}
+    role_label_by_id = {rid: lib for rid, lib, _niv, _gl, _adm, _tr in ROLES_REF}
 
     def get_entite(type_e, nom, parent_id=None):
         key = (type_e, nom.lower(), parent_id)
@@ -369,15 +457,38 @@ def main():
         }
         return uid
 
-    def add_aff(uid, role_id, entite_id, mail_fonc=None):
+    def add_aff(
+        uid,
+        role_id,
+        entite_id,
+        mail_fonc=None,
+        fonction_label=None,
+        supervisor_label=None,
+        extra_lookup_labels=None,
+    ):
         dedup_key = (uid, role_id, entite_id)
         if dedup_key in aff_seen:
             return None
         aff_seen.add(dedup_key)
         aff_id = next_aff[0]; next_aff[0] += 1
+        lookup_labels = [fonction_label, role_label_by_id.get(role_id)]
+        lookup_labels.extend(extra_lookup_labels or [])
+        lookup_norms = tuple(
+            dict.fromkeys(
+                norm for norm in (
+                    normalize_lookup_label(label) for label in lookup_labels
+                ) if norm
+            )
+        )
         affectations.append({
             'id': aff_id, 'uid': uid, 'role': role_id,
             'entite': entite_id, 'annee': ANNEE_ID,
+            'fonction_label': clean(fonction_label),
+            'fonction_norm': normalize_lookup_label(fonction_label),
+            'supervisor_label': clean(supervisor_label),
+            'supervisor_norm': normalize_lookup_label(supervisor_label),
+            'id_affectation_n_plus_1': None,
+            'lookup_norms': lookup_norms,
         })
         if mail_fonc:
             cr_id = next_cr[0]; next_cr[0] += 1
@@ -408,7 +519,14 @@ def main():
                 mail_inst=c['dir_mail_inst'] or None,
                 categorie='EC',
             )
-            add_aff(uid, 'directeur-composante', eid, mail_fonc=c['dir_mail_fonc'] or None)
+            add_aff(
+                uid,
+                'directeur-composante',
+                eid,
+                mail_fonc=c['dir_mail_fonc'] or None,
+                fonction_label='Directeur de composante',
+                extra_lookup_labels=[c['dir_fonction']],
+            )
 
         if c['da_nom']:
             uid = get_user(
@@ -417,7 +535,13 @@ def main():
                 mail_inst=c['da_mail_inst'] or None,
                 categorie='BIATSS',
             )
-            add_aff(uid, 'directeur-administratif', eid, mail_fonc=c['da_mail_fonc'] or None)
+            add_aff(
+                uid,
+                'directeur-administratif',
+                eid,
+                mail_fonc=c['da_mail_fonc'] or None,
+                fonction_label='Directeur administratif',
+            )
 
     # ── 5b. Feuilles de données (903-IG, 925-IUTB, …) ────────────────────────
     data_sheets = [name for name in sheets if re.match(r'^\d{3}', name)]
@@ -467,6 +591,7 @@ def main():
             parc_nom   = col(row, 'parcours')
             type_col   = col(row, 'type')
             fonction   = col(row, 'n')
+            supervisor_label = col(row, 'n_plus_1')
             prenom     = col(row, 'prenom')
             nom_u      = col(row, 'nom')
             civilite   = col(row, 'civilite')
@@ -479,6 +604,14 @@ def main():
 
             if not code_comp: continue
             if code_comp not in entite_comp: continue
+            virtual_dept = infer_virtual_department(code_comp, type_dipl, mail_fonc)
+            if virtual_dept:
+                dept_nom = virtual_dept
+
+            fonction_norm = normalize_lookup_label(fonction)
+            supervisor_norm = normalize_lookup_label(supervisor_label)
+            if fonction_norm and supervisor_norm:
+                supervisor_norms_by_function_norm.setdefault(fonction_norm, Counter())[supervisor_norm] += 1
 
             comp_eid = entite_comp[code_comp]
             current_eid = comp_eid
@@ -529,7 +662,119 @@ def main():
             )
 
             role_id = map_role(fonction)
-            add_aff(uid, role_id, current_eid, mail_fonc=mail_fonc or None)
+            extra_lookup_labels = []
+            context_norm = ' '.join(
+                part for part in (
+                    normalize_lookup_label(dept_nom),
+                    normalize_lookup_label(ment_nom),
+                    normalize_lookup_label(parc_nom),
+                ) if part
+            )
+            if 'cursus preparatoire' in context_norm:
+                if normalize_lookup_label(fonction) == 'directeur':
+                    extra_lookup_labels.append('Directeur du cursus préparatoire')
+                elif normalize_lookup_label(fonction) == 'directeur adjoint':
+                    extra_lookup_labels.append('Directeur adjoint du cursus préparatoire')
+            add_aff(
+                uid,
+                role_id,
+                current_eid,
+                mail_fonc=mail_fonc or None,
+                fonction_label=fonction,
+                supervisor_label=supervisor_label,
+                extra_lookup_labels=extra_lookup_labels,
+            )
+
+    entite_parent_by_id = {
+        eid: parent_id
+        for (_type_e, _nom_lower, parent_id), eid in entite_cache.items()
+    }
+
+    def build_entite_lineage(entite_id):
+        lineage = []
+        current_id = entite_id
+        while current_id is not None:
+            lineage.append(current_id)
+            current_id = entite_parent_by_id.get(current_id)
+        return lineage
+
+    affectations_by_function = {}
+    for affectation in affectations:
+        for lookup_norm in affectation['lookup_norms']:
+            affectations_by_function.setdefault(lookup_norm, []).append(affectation)
+
+    for candidates in affectations_by_function.values():
+        candidates.sort(key=lambda item: item['id'])
+
+    fallback_supervisors_by_norm = {
+        fonction_norm: [norm for norm, _count in counter.most_common()]
+        for fonction_norm, counter in supervisor_norms_by_function_norm.items()
+    }
+
+    def expand_supervisor_norms(start_norm):
+        expanded = [(0, start_norm)]
+        queue = [(0, start_norm)]
+        seen = {start_norm}
+
+        while queue:
+            depth, current_norm = queue.pop(0)
+            for next_norm in fallback_supervisors_by_norm.get(current_norm, []):
+                if not next_norm or next_norm in seen:
+                    continue
+                seen.add(next_norm)
+                expanded.append((depth + 1, next_norm))
+                queue.append((depth + 1, next_norm))
+
+        return expanded
+
+    resolved_supervisors = 0
+    unresolved_supervisors = []
+
+    for affectation in affectations:
+        supervisor_norm = affectation['supervisor_norm']
+        if not supervisor_norm:
+            continue
+
+        lineage = build_entite_lineage(affectation['entite'])
+        lineage_distance = {entite_id: index for index, entite_id in enumerate(lineage)}
+        child_level = role_level_by_id.get(affectation['role'], 999)
+        candidates = []
+
+        for supervisor_depth, candidate_norm in expand_supervisor_norms(supervisor_norm):
+            for candidate in affectations_by_function.get(candidate_norm, []):
+                if candidate['id'] == affectation['id']:
+                    continue
+                if candidate['entite'] not in lineage_distance:
+                    continue
+
+                candidate_level = role_level_by_id.get(candidate['role'], 999)
+                same_function = candidate['fonction_norm'] == affectation['fonction_norm']
+                if same_function and candidate['id'] > affectation['id']:
+                    continue
+
+                candidates.append((
+                    supervisor_depth,
+                    lineage_distance[candidate['entite']],
+                    0 if candidate_level < child_level else 1,
+                    candidate_level,
+                    candidate['id'],
+                    candidate,
+                ))
+
+        if not candidates:
+            unresolved_supervisors.append(
+                (
+                    affectation['id'],
+                    affectation['fonction_label'],
+                    affectation['supervisor_label'],
+                    affectation['entite'],
+                )
+            )
+            continue
+
+        candidates.sort(key=lambda item: item[:5])
+        affectation['id_affectation_n_plus_1'] = candidates[0][5]['id']
+        resolved_supervisors += 1
 
     # ── 6. Génération SQL ─────────────────────────────────────────────────────
 
@@ -549,6 +794,15 @@ def main():
     print(f'Utilisateurs : {len(user_data)}')
     print(f'Affectations : {len(affectations)}')
     print(f'Contact roles : {len(contact_roles)}')
+    print(f'N+1 résolus : {resolved_supervisors}')
+    if unresolved_supervisors:
+        print(f'N+1 non résolus : {len(unresolved_supervisors)}')
+        unresolved_counter = Counter(
+            (fonction_label, supervisor_label)
+            for _aff_id, fonction_label, supervisor_label, _entite_id in unresolved_supervisors
+        )
+        for (fonction_label, supervisor_label), count in unresolved_counter.most_common(10):
+            print(f'  - {count} x {fonction_label} -> {supervisor_label}')
 
     # composante sous-table
     if entite_comp:
@@ -612,9 +866,9 @@ def main():
 
     # affectations
     if affectations:
-        lines.append('INSERT INTO affectation (id_affectation, id_user, id_role, id_entite, id_annee, date_debut) VALUES')
+        lines.append('INSERT INTO affectation (id_affectation, id_user, id_role, id_entite, id_annee, date_debut, id_affectation_n_plus_1) VALUES')
         a_rows = [
-            f"  ({a['id']}, {a['uid']}, {q(a['role'])}, {a['entite']}, {a['annee']}, '2025-09-01')"
+            f"  ({a['id']}, {a['uid']}, {q(a['role'])}, {a['entite']}, {a['annee']}, '2025-09-01', {a['id_affectation_n_plus_1'] if a['id_affectation_n_plus_1'] else 'NULL'})"
             for a in affectations
         ]
         lines.append(',\n'.join(a_rows) + ';')
@@ -653,12 +907,24 @@ def main():
         "  (SELECT count(*) FROM affectation) as affectations;",
     ]
 
-    OUT.write_text('\n'.join(lines), encoding='utf-8')
-    print(f'\nSQL écrit dans {OUT}')
+    sql_content = '\n'.join(lines)
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(sql_content, encoding='utf-8')
+    print(f'\nSQL écrit dans {out_path}')
+
+    docker_out_path = DOCKER_INIT_OUT.resolve()
+    if docker_out_path != out_path:
+        docker_out_path.parent.mkdir(parents=True, exist_ok=True)
+        docker_out_path.write_text(sql_content, encoding='utf-8')
+        print(f'Seed Docker écrit dans {docker_out_path}')
     print(f'  Entités     : {len(entite_cache)}')
     print(f'  Utilisateurs: {len(user_data)}')
     print(f'  Affectations: {len(affectations)}')
     print(f'  Contact roles: {len(contact_roles)}')
+    print(f'  N+1 résolus : {resolved_supervisors}')
+    if unresolved_supervisors:
+        print(f'  N+1 non résolus : {len(unresolved_supervisors)}')
 
 if __name__ == '__main__':
     main()

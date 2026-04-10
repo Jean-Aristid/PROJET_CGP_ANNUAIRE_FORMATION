@@ -1,399 +1,411 @@
-# Manuel d'utilisation
+# Manuel utilisateur — CGP Annuaire Formation
 
-Etat du manuel: avril 2026.
+## Présentation de l'application
 
-## 1. Objectif
+**CGP Annuaire Formation** est une application web permettant de gérer l'annuaire des responsables de formations universitaires. Elle regroupe dans un seul outil :
 
-Ce manuel explique l'usage quotidien de l'application CGP.
+- La **recherche** dans l'annuaire des responsables, formations et structures
+- La **gestion des affectations** (qui est responsable de quoi, et pour quelle année)
+- La **gestion des délégations** de droits
+- Le **suivi des signalements** d'erreurs dans l'annuaire
+- La **génération d'organigrammes** des structures
+- L'**import/export** des données
 
-Il s'adresse:
+L'accès à certaines fonctionnalités dépend du **rôle** de l'utilisateur dans l'université.
 
-- aux utilisateurs qui consultent l'annuaire
-- aux responsables qui gerent leur perimetre
-- aux services centraux qui pilotent les donnees et les annees
+---
 
-## 2. Convention pour les captures
+## Connexion
 
-Les captures du manuel doivent etre deposees dans `documentation/captures/`.
+L'application utilise l'authentification universitaire. En mode développement, un sélecteur d'utilisateur permet de se connecter sous différents profils pour tester les fonctionnalités.
 
-Convention recommandee:
+Une fois connecté, votre **nom**, votre **rôle** et l'**année universitaire courante** s'affichent en haut de l'interface.
 
-- format `png`
-- une capture par ecran ou action cle
-- donnees de demonstration uniquement
-- anonymiser les donnees personnelles si necessaire
+---
 
-## 3. Connexion et session
+## Rôles et permissions
 
-### 3.1 Connexion
+| Rôle | Description | Accès principaux |
+|---|---|---|
+| **Services Centraux** | Administration générale | Accès complet à toutes les fonctionnalités |
+| **Directeur de composante** | Directeur d'UFR, Institut ou IUT | Gestion des responsables de sa composante, délégations, organigrammes |
+| **Directeur administratif** | Responsable administratif | Gestion des affectations et délégations |
+| **Responsable de mention** | Responsable d'une mention de diplôme | Consultation et édition de sa mention |
+| **Responsable de parcours** | Responsable d'un parcours | Consultation et édition de son parcours |
+| **Secrétariat pédagogique** | Secrétariat | Consultation de l'annuaire |
 
-L'application s'ouvre sur un ecran de connexion par login.
+---
 
-En environnement de developpement:
+## Navigation
 
-- l'utilisateur saisit un login
-- l'application recharge ensuite son profil, ses droits et son contexte d'annee
+L'interface est organisée en sections dans le menu latéral :
 
-Capture recommandee:
+### Essentiel
+- **Tableau de bord** — Vue d'ensemble avec statistiques
+- **Annuaire / Recherche** — Recherche dans l'annuaire
+- **Organigramme** — Visualisation des structures
+- **Import / Export** — Import et export de données
 
-- `01-connexion.png`
+### Gestion
+- **Responsables** — Gestion des affectations de responsables
+- **Structures** — Gestion des entités organisationnelles
+- **Rôles** — Demandes et validation de rôles
 
-### 3.2 Tableau de bord
+### Administration
+- **Délégations** — Gestion des délégations de droits
+- **Années universitaires** — Gestion du cycle annuel
+- **Signalements** — Suivi des erreurs signalées
 
-Apres connexion, l'utilisateur arrive sur le tableau de bord.
+### Paramètres
+- **Journal d'audit** — Historique des actions (Services Centraux uniquement)
+- **Mon profil** — Modification de vos informations
 
-Le tableau de bord permet de:
+---
 
-- voir l'annee courante de la session
-- ouvrir rapidement les ecrans principaux
-- verifier les actions accessibles selon le role
+## Tableau de bord
 
-Capture recommandee:
+Le tableau de bord affiche un résumé de l'état de l'annuaire pour l'année universitaire courante :
 
-- `02-tableau-de-bord.png`
+- Nombre de composantes actives
+- Nombre de mentions et parcours
+- Nombre de responsables affectés
+- Signalements ouverts
+- Délégations actives
 
-### 3.3 Changement d'annee
+Utilisez le sélecteur d'année en haut de page pour changer l'année consultée.
 
-Le changement d'annee est reserve aux `services-centraux`.
+---
 
-Pour les autres roles:
+## Recherche dans l'annuaire
 
-- l'annee `EN_COURS` reste visible dans l'entete
-- elle n'est pas modifiable depuis l'interface
+La recherche est organisée en quatre onglets :
 
-Pour les services centraux:
+### Onglet Responsables
+Recherchez les responsables par nom, prénom ou entité. Les résultats affichent :
+- Nom et prénom
+- Rôle dans l'établissement
+- Entité de rattachement
+- Email et téléphone de contact
 
-- le selecteur d'annee change le contexte de travail
-- les structures, responsables, recherches et exports se recalculent pour l'annee choisie
+**Filtres disponibles :** composante, année universitaire
 
-## 4. Navigation generale
+### Onglet Formations
+Recherchez des mentions et parcours par nom ou type de diplôme (Licence, Master, DUT…).
 
-Selon le role, l'utilisateur peut voir les rubriques suivantes:
+### Onglet Structures
+Recherchez dans l'arborescence des composantes, départements et entités.
 
-- `Tableau de bord`
-- `Rechercher`
-- `Organigramme`
-- `Import / Export`
-- `Responsables`
-- `Fiches structures`
-- `Demandes de roles`
-- `Delegations`
-- `Annees`
-- `Audit`
-- `Signalements`
-- `Ma fiche`
+### Onglet Secrétariats
+Retrouvez les coordonnées des secrétariats pédagogiques.
 
-Toutes les rubriques ne sont pas visibles pour tous les profils.
+---
 
-## 5. Recherche avancee
+## Gestion des responsables
 
-### 5.1 Principe
+> Accessible aux rôles : Directeur de composante, Directeur administratif, Services Centraux
 
-La rubrique `Rechercher` permet une consultation transversale de l'annuaire sans modifier les donnees.
+### Consulter les affectations
 
-Les onglets disponibles sont:
+La liste affiche tous les responsables affectés avec :
+- Nom de l'utilisateur
+- Rôle attribué
+- Entité concernée
+- Dates de début et de fin
 
-- `Responsables`
-- `Formations`
-- `Structures`
-- `Secretariats`
+### Créer une affectation
 
-Les filtres disponibles peuvent inclure:
+1. Cliquer sur **Nouvelle affectation**
+2. Sélectionner l'utilisateur
+3. Choisir le rôle
+4. Sélectionner l'entité (composante, mention, parcours…)
+5. Définir les dates de début et de fin
+6. Valider
 
-- une recherche texte libre
-- des filtres hierarchiques composante vers niveau
-- un filtre role pour l'onglet responsables
-- un filtre type de structure ou type de diplome selon l'onglet
+> La date de fin doit être postérieure ou égale à la date de début.
 
-### 5.2 Recherche sur toute la base
+### Modifier une affectation
 
-Pour `services-centraux` et `administrateur`, un selecteur de perimetre permet:
+1. Cliquer sur l'affectation dans la liste
+2. Modifier les champs souhaités
+3. Enregistrer
 
-- soit de travailler sur une annee precise
-- soit de basculer sur `Toute la base`
+### Ajouter des informations de contact
 
-En mode `Toute la base`:
+Chaque affectation peut avoir des coordonnées de contact spécifiques au rôle (différentes du profil personnel) :
+1. Ouvrir l'affectation
+2. Aller dans l'onglet **Contact**
+3. Renseigner l'email fonctionnel, le téléphone et le bureau
+4. Enregistrer
 
-- la recherche remonte des resultats de plusieurs annees
-- l'annee du resultat est affichee dans les cartes
-- les structures de filtre sont rechargees dynamiquement pour couvrir l'ensemble du perimetre
+### Supprimer une affectation
 
-Pour les autres roles:
+Cliquer sur l'icône de suppression dans la liste. Cette action est définitive.
 
-- la recherche reste bornee a leur contexte d'annee autorise
+---
 
-Captures recommandees:
+## Gestion des structures
 
-- `03-recherche-responsables.png`
-- `04-recherche-globale-sc.png`
-- `05-recherche-structures.png`
+> Accessible en écriture aux : Services Centraux
 
-### 5.3 Conseils d'usage
+La liste des structures affiche l'arborescence :
+- Composantes (UFR, IUT, Instituts)
+  - Départements
+  - Mentions
+    - Parcours
+    - Niveaux
 
-- commencer par une recherche texte simple
-- affiner ensuite avec les filtres hierarchiques
-- utiliser les identifiants quand ils sont connus
-- pour les services centraux, limiter d'abord le perimetre a une annee si la recherche est trop large
+### Modifier une structure
 
-## 6. Fiches structures
+1. Cliquer sur la structure dans l'arborescence
+2. Modifier le nom, les coordonnées de service, les informations spécifiques
+3. Enregistrer
 
-La rubrique `Fiches structures` permet de consulter les informations detaillees d'une structure.
+---
 
-Les informations visibles peuvent inclure:
+## Gestion des rôles
 
-- le type de structure
-- le rattachement hierarchique
-- les coordonnees du service
-- les responsables et le secretariat
-- les sous-structures directes
-- des champs metier selon le type
+### Demander un nouveau rôle
 
-Exemples de champs specifiques:
+Si vous avez besoin d'accéder à des fonctionnalités supplémentaires :
 
-- composante:
-  code composante, type de composante, campus, mails, site web
-- departement:
-  code interne
-- mention:
-  type de diplome, diplome de reference, cycle
-- parcours:
-  code parcours
-- niveau:
-  libelle court
+1. Aller dans **Rôles** → **Mes demandes**
+2. Cliquer sur **Nouvelle demande**
+3. Sélectionner le rôle souhaité
+4. Décrire la justification
+5. Soumettre
 
-### 6.1 Modification des structures
+La demande sera examinée par les Services Centraux. Vous recevrez une notification lors de sa validation ou de son refus.
 
-La modification est reservee aux `services-centraux`.
+### Valider une demande de rôle (Services Centraux)
 
-Le modal d'edition permet de modifier tous les champs lies au type courant.
+1. Aller dans **Rôles** → **Demandes à traiter**
+2. Cliquer sur une demande
+3. Consulter la justification
+4. Cliquer **Valider** ou **Refuser**
 
-Captures recommandees:
+---
 
-- `06-fiche-structure.png`
-- `07-fiche-structure-edition.png`
+## Délégations
 
-## 7. Organigrammes
+Une délégation permet de confier temporairement vos droits à un autre utilisateur (ex : pendant une absence).
 
-### 7.1 Vue structures
+### Créer une délégation
 
-La vue `Structures` affiche l'organisation des entites et les responsables associes.
+> Accessible aux rôles : Directeur de composante, Directeur administratif, Responsable de mention, Responsable de parcours
 
-### 7.2 Vue personnes
+1. Aller dans **Délégations** → **Nouvelle délégation**
+2. Choisir le **délégataire** (personne à qui déléguer)
+3. Sélectionner l'**entité** concernée
+4. Choisir le **rôle** délégué
+5. Définir la **période** (dates de début et de fin)
+6. Valider
 
-La vue `Personnes` affiche uniquement des personnes reliees par la hierarchie N+1.
+> Vous ne pouvez déléguer que sur des entités où vous êtes vous-même affecté.
 
-Les filtres permettent notamment de cibler:
+### Révoquer une délégation
 
-- un role
-- une recherche libre
-- une branche hierarchique
+Dans la liste des délégations, cliquer sur **Révoquer** en face de la délégation concernée. La délégation passe au statut `ANNULEE`.
 
-### 7.3 Bibliotheque
+### Consulter les délégations reçues
 
-La bibliotheque des organigrammes deja generes permet de:
+L'onglet **Délégations reçues** liste les droits qui vous ont été délégués par d'autres responsables.
 
-- retrouver un organigramme existant
-- l'ouvrir en vue structures ou personnes
-- filtrer les organigrammes disponibles
+---
 
-Captures recommandees:
+## Signalements
 
-- `08-organigramme-structures.png`
-- `09-organigramme-personnes.png`
-- `10-bibliotheque-organigrammes.png`
+Les signalements permettent de remonter des erreurs ou incohérences détectées dans l'annuaire.
 
-## 8. Gestion des responsables
+### Créer un signalement
 
-La rubrique `Responsables` permet, selon les droits:
+1. Cliquer sur **Nouveau signalement**
+2. Décrire le problème constaté
+3. Indiquer le type d'erreur (erreur de responsable, données incorrectes…)
+4. Lier le signalement à l'entité ou à l'utilisateur concerné (optionnel)
+5. Soumettre
 
-- de rechercher des personnes par nom, login, email, identifiant ou structure
-- d'ajouter un utilisateur
-- de modifier une fiche personne
-- d'ajouter, modifier ou supprimer une affectation
+### Suivre ses signalements
 
-### 8.1 Edition de la fiche personne
+La liste affiche vos signalements avec leur statut :
+- **Ouvert** : non encore pris en charge
+- **En cours** : en cours de traitement
+- **Clôturé** : résolu
 
-Les champs suivants peuvent etre modifies par les profils autorises:
+### Escalader un signalement (responsables)
 
-- prenom
-- nom
-- email institutionnel
-- email institutionnel secondaire
-- civilite
-- categorie
-- telephone
-- bureau
+Si un signalement n'est pas traité, vous pouvez l'escalader vers les Services Centraux :
+1. Ouvrir le signalement
+2. Cliquer sur **Escalader aux services centraux**
 
-### 8.2 Edition de l'affectation
+### Traiter un signalement (responsables / Services Centraux)
 
-Le modal d'edition d'affectation permet de modifier:
+1. Ouvrir le signalement dans la liste des signalements à traiter
+2. Modifier le statut (`En cours` → `Clôturé`)
+3. Ajouter un commentaire explicatif
+4. Enregistrer
 
-- le role
-- la structure d'affectation
-- la date de debut
-- la date de fin
-- l'email fonctionnel
-- le telephone fonctionnel
-- le bureau fonctionnel
+---
 
-### 8.3 Lecture de la fiche
+## Organigrammes
 
-Depuis la liste, l'utilisateur voit aussi:
+### Consulter l'organigramme
 
-- les affectations de l'annee
-- les roles actifs
-- les informations de contact
+Aller dans **Organigramme** pour visualiser l'arborescence de l'établissement avec les responsables affectés à chaque niveau.
 
-Captures recommandees:
+L'organigramme le plus récent s'affiche par défaut.
 
-- `11-responsables.png`
-- `12-responsables-edition.png`
+### Générer un organigramme
 
-## 9. Delegations
+> Accessible aux rôles : Directeur de composante, Directeur administratif, Services Centraux
 
-La rubrique `Delegations` permet de deleguer certains droits a un autre utilisateur, selon les regles du role courant.
+1. Aller dans **Organigramme**
+2. Cliquer sur **Générer un organigramme**
+3. L'organigramme est créé à partir des affectations actives
 
-### 9.1 Consultation
+### Exporter l'organigramme
 
-L'ecran affiche:
+Cliquer sur **Exporter** pour télécharger l'organigramme en PDF.
 
-- une liste des delegations visibles
-- des filtres par statut
-- des filtres hierarchiques dynamiques
-- une recherche par identifiant, delegant, delegataire, structure ou droit
+### Figer un organigramme (Services Centraux)
 
-### 9.2 Creation
+Figer un organigramme empêche sa modification. Il devient une référence officielle.
+1. Sélectionner l'organigramme
+2. Cliquer sur **Figer**
 
-Pour les profils de direction autorises:
+---
 
-- le modal de creation propose d'abord des filtres hierarchiques dynamiques
-- la liste du perimetre est volontairement bornee aux structures autorisees
-- pour les profils non centraux, seules les structures d'affectation directe peuvent etre choisies
+## Import / Export
 
-Les droits delegables sont:
+> Accessible selon le type d'opération (voir ci-dessous)
 
-- `Lecture`
-- `Gestion responsables`
-- `Affectation roles`
-- `Validation des signalements`
-- `Generer organigramme`
-- `Import`
-- `Acces complet`
+### Exporter les responsables (Services Centraux)
 
-### 9.3 Revocation et export
+1. Aller dans **Import / Export** → onglet **Export**
+2. Cliquer sur **Exporter les responsables**
+3. Télécharger le fichier CSV généré
 
-- le delegant concerne peut revoquer sa delegation
-- les services centraux peuvent exporter les delegations en CSV
+### Exporter le classeur standard (Services Centraux)
 
-Capture recommandee:
+1. Aller dans **Import / Export** → onglet **Export**
+2. Cliquer sur **Exporter le classeur**
+3. Télécharger le fichier `.xlsx`
 
-- `13-delegations.png`
+### Importer des responsables
 
-## 10. Demandes de roles
+L'import se fait en deux étapes pour éviter les erreurs :
 
-La rubrique `Demandes de roles` permet:
+**Étape 1 — Prévisualisation**
+1. Aller dans **Import / Export** → onglet **Import**
+2. Sélectionner le fichier CSV
+3. Cliquer sur **Prévisualiser**
+4. Vérifier les données dans le tableau de prévisualisation (créations, mises à jour, erreurs)
 
-- de deposer une demande
-- de suivre son statut
-- de la traiter pour les profils autorises
+**Étape 2 — Confirmation**
+5. Si tout est correct, cliquer sur **Confirmer l'import**
+6. L'application applique les modifications
 
-Capture recommandee:
+> En cas d'erreurs détectées à l'étape 1, corrigez le fichier CSV et recommencez la prévisualisation.
 
-- `14-demandes-roles.png`
+### Format du fichier CSV d'import
 
-## 11. Import / Export
+Le fichier CSV doit respecter les colonnes suivantes (avec en-tête) :
 
-La rubrique `Import / Export` permet:
+```csv
+login,nom,prenom,role,entite,date_debut,date_fin
+jdupont,Dupont,Jean,RESPONSABLE_MENTION,Mention Informatique,2024-09-01,2025-08-31
+```
 
-- d'exporter une annee complete
-- d'exporter une structure et son sous-arbre
-- de telecharger un modele standardise
-- de lancer une previsualisation d'import
-- d'importer tout un fichier ou un perimetre cible
+---
 
-Bonnes pratiques:
+## Gestion des années universitaires
 
-- verifier l'annee cible
-- commencer par une preview
-- relire les alertes avant confirmation
+> Accessible aux : Services Centraux
 
-Captures recommandees:
+### Consulter les années
 
-- `15-import-export.png`
-- `16-preview-import.png`
+La liste affiche toutes les années avec leur statut :
+- **En cours** : année active
+- **En préparation** : année suivante en construction
+- **Archivée** : année passée
 
-## 12. Annees universitaires
+### Cloner une année
 
-La rubrique `Annees` est reservee aux services centraux.
+Pour préparer la prochaine année universitaire à partir de la structure actuelle :
 
-Elle permet:
+1. Aller dans **Années universitaires**
+2. Cliquer sur **Cloner** en face de l'année courante
+3. Une nouvelle année est créée avec les mêmes structures
 
-- de creer une annee vide
-- de cloner une annee source
-- de choisir un clonage complet ou selectif
-- de copier ou non les affectations
-- d'activer ou d'archiver une annee
-- de supprimer une annee avec sauvegarde metier
+### Changer le statut d'une année
 
-Capture recommandee:
+1. Sélectionner l'année
+2. Modifier le statut via le menu déroulant
+3. Enregistrer
 
-- `17-gestion-annees.png`
+---
 
-## 13. Signalements
+## Mon profil
 
-La rubrique `Signalements` permet:
+Accessible depuis le menu en haut à droite ou via **Paramètres** → **Mon profil**.
 
-- de creer un signalement
-- de filtrer les signalements visibles
-- de suivre leur prise en charge et leur cloture
+Vous pouvez y modifier :
+- Votre prénom et nom d'affichage
+- Votre email institutionnel
+- Votre téléphone
+- Votre bureau
 
-Capture recommandee:
+Les modifications sont enregistrées immédiatement.
 
-- `18-signalements.png`
+---
 
-## 14. Audit
+## Notifications
 
-La rubrique `Audit` est reservee aux profils autorises.
+L'icône de cloche en haut à droite affiche le nombre de notifications non lues.
 
-Elle permet de:
+Les notifications sont envoyées automatiquement lors :
+- De la validation ou du refus d'une demande de rôle
+- De la clôture d'un signalement que vous avez déposé
+- D'une délégation qui vous est accordée ou révoquée
 
-- consulter les traces
-- filtrer les actions
-- exporter le journal
+Cliquer sur une notification l'ouvre et la marque comme lue.
 
-Capture recommandee:
+---
 
-- `19-audit.png`
+## Journal d'audit
 
-## 15. Profil utilisateur
+> Accessible aux : Services Centraux uniquement
 
-La rubrique `Ma fiche` permet a l'utilisateur de consulter son profil et, selon les droits exposes par l'ecran, de modifier certains champs personnels.
+Le journal d'audit enregistre toutes les actions effectuées dans l'application :
+- Créations, modifications et suppressions de données
+- Auteur de l'action et horodatage
+- Valeurs avant et après modification
 
-Capture recommandee:
+### Filtrer le journal
 
-- `20-profil.png`
+Utilisez les filtres disponibles :
+- **Type d'action** (CREATE, UPDATE, DELETE)
+- **Période** (date de début / date de fin)
+- **Utilisateur auteur**
 
-## 16. Checklist des captures
+### Exporter le journal
 
-Pour un manuel complet, produire idealement:
+Cliquer sur **Exporter CSV** pour télécharger le journal d'audit complet ou filtré.
 
-1. `01-connexion.png`
-2. `02-tableau-de-bord.png`
-3. `03-recherche-responsables.png`
-4. `04-recherche-globale-sc.png`
-5. `05-recherche-structures.png`
-6. `06-fiche-structure.png`
-7. `07-fiche-structure-edition.png`
-8. `08-organigramme-structures.png`
-9. `09-organigramme-personnes.png`
-10. `10-bibliotheque-organigrammes.png`
-11. `11-responsables.png`
-12. `12-responsables-edition.png`
-13. `13-delegations.png`
-14. `14-demandes-roles.png`
-15. `15-import-export.png`
-16. `16-preview-import.png`
-17. `17-gestion-annees.png`
-18. `18-signalements.png`
-19. `19-audit.png`
-20. `20-profil.png`
+---
+
+## Questions fréquentes
+
+**Je ne vois pas certaines fonctionnalités dans le menu.**  
+Votre rôle ne vous autorise pas à y accéder. Contactez un directeur de composante ou les services centraux pour faire une demande de rôle.
+
+**Je ne retrouve pas un responsable dans l'annuaire.**  
+Vérifiez que vous consultez la bonne année universitaire (sélecteur en haut de page). Le responsable est peut-être affecté sur une autre année.
+
+**Une information est incorrecte dans l'annuaire.**  
+Utilisez la fonctionnalité **Signalements** pour remonter l'erreur. Elle sera traitée par le responsable concerné ou les services centraux.
+
+**J'ai besoin de déléguer mes droits pendant mon absence.**  
+Allez dans **Délégations** → **Nouvelle délégation** et définissez la période et le délégataire.
+
+**Comment préparer l'année universitaire suivante ?**  
+Les Services Centraux peuvent cloner l'année courante depuis **Années universitaires** → **Cloner**. Les structures sont copiées et peuvent ensuite être ajustées.

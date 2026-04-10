@@ -1,0 +1,159 @@
+Composante,Type Diplome,Département,Mention,Code étape,Parcours,Type,N,Catégorie fonction,Prénom,NOM,Civilité,Catégorie personnel,Mail institutionnel,Autre mail institutionnel,Mail fonctionnel,Bureau,Téléphone,N+1
+903,,,,,,,Directeur de composante,Enseignant,Bruno,MANIL,M,EC,bruno.manil@univ-paris13.fr,,directeur.galilee@univ-paris13.fr,,,
+903,,Informatique,,,,,Président de département,Enseignant,Sophie,TOULOUSE,F,EC,,sophie.toulouse@lipn.univ-paris13.fr,departement.informatique.galilee@univ-paris13.fr,,,Directeur de composante
+903,,Informatique,,,,,Vice-président de département,Enseignant,Thierry,HAMON,M,EC,thierry.hamon@univ-paris13.fr,,departement.informatique.galilee@univ-paris13.fr,,,Président de département
+903,,Mathématiques,,,,,Président de département,Enseignant,,Y,M,EC,,,,,,Directeur de composante
+903,,Physique,,,,,Président de département,Enseignant,Luc,MUSEUR,,,luc.museur@univ-paris13.fr,,,,,Directeur de composante
+903,,Chimie et Génie des Procédés,,,,,Président de département,Enseignant,Michaël,REDOLFI,M,EC,michael.redolfi@univ-paris13.fr,michael.redolfi@lspm.cnrs.fr,,,,Directeur de composante
+903,,"Langues, Culture et Communication",,,,,Président de département,Enseignant,Thérèse,SEPULCHRE,F,Contractuel,,,,,,Directeur de composante
+903,Licence,,,,,L,Directeur adjoint chargé du cycle Licence,Enseignant,Valérie,BOUCARD,F,EC,,,,,,Directeur de composante
+903,Licence,,,,,L,Responsable du service pédagogique,Administratif,Florence,BAUDIN,F,BIATSS,,,licence-master.ig@univ-paris13.fr,H016,01 49 40 36 54,Directeur administratif
+903,Licence,,,,,L,Responsable adjoint du service pédagogique,Administratif,Loredana,YACOUBI,F,BIATSS,,,licence.galilee@univ-paris13.fr,H015,01 49 40 36 59,Responsable du service pédagogique
+903,Licence,Informatique,Informatique,,,L,Responsable de mention,Enseignant,Pierre,FOUILHOUX,M,EC,,pierre.fouilhoux@lipn.fr,,,,Directeur adjoint chargé du cycle Licence
+903,Licence,Informatique,Informatique,,Parcours aménagé,L1,Responsable d'année / Directeur des études,Enseignant,Benoit,RITTAUD,M,EC,,rittaud@math.univ-paris13.fr,,,,Responsable de mention
+903,Licence,Informatique,Informatique,,,L1,Responsable de semestre 1 / Directeur des études,Enseignant,Henry,DE THELIN,M,EC,,dethelin@math.univ-paris13.fr ,,,,Responsable de mention
+903,Licence,Informatique,Informatique,,,L1,Responsable de semestre 2 / Directeur des études,Enseignant,Serguei,LENGLET,M,EC,serguei.lenglet@univ-paris13.fr,,,,,Responsable de mention
+903,Licence,Informatique,Informatique,,,L2,Responsable d'année / Directeur des études,Enseignant,Stefano,GUERRINI,M,EC,,guerrini@lipn.univ-paris13.fr,,,,Responsable de mention
+903,Licence,Informatique,Informatique,,,L3,Responsable d'année / Directeur des études,Enseignant,Nadi,TOMEH,M,EC,,nadi.tomeh@lipn.univ-paris13.fr ,,,,Responsable de mention
+903,Licence,Informatique,Informatique,,Parcours aménagé,L1,Secrétaire pédagogique,Administratif,Noémia,DULPHY,F,BIATSS,,,licence1.amg.galilee@univ-paris13.fr,H014,,Responsable adjoint du service pédagogique
+903,Licence,Informatique,Informatique,,,L1,Secrétaire pédagogique,Administratif,Sarah,ITOUCHENE,F,BIATSS,,,licence1.galilee@univ-paris13.fr,H014,,Responsable adjoint du service pédagogique
+903,Licence,Informatique,Informatique,,,L2,Secrétaire pédagogique,Administratif,Greta,MEUNIER,F,BIATSS,,,licence2.info.galilee@univ-paris13.fr,H012,,Responsable adjoint du service pédagogique
+903,Licence,Informatique,Informatique,,,L3,Secrétaire pédagogique,Administratif,Aline,DACHEUX,F,BIATSS,,,licence3.info.galilee@univ-paris13.fr,H011,,Responsable adjoint du service pédagogique
+903,Licence,Mathématiques,Mathématiques,,,L,Responsable de mention,Enseignant,Henry,DE THELIN,M,EC,,dethelin@math.univ-paris13.fr ,,,,Directeur adjoint chargé du cycle Licence
+903,Licence,Mathématiques,Mathématiques,,Parcours aménagé,L1,Responsable d'année / Directeur des études,Enseignant,Benoit,RITTAUD,M,EC,,rittaud@math.univ-paris13.fr,,,,Responsable de mention
+903,Licence,Mathématiques,Mathématiques,,,L1,Responsable de semestre 1 / Directeur des études,Enseignant,Henry,DE THELIN,M,EC,,dethelin@math.univ-paris13.fr ,,,,Responsable de mention
+903,Licence,Mathématiques,Mathématiques,,,L1,Responsable de semestre 2 / Directeur des études,Enseignant,Serguei,LENGLET,M,EC,serguei.lenglet@univ-paris13.fr,,,,,Responsable de mention
+903,Licence,Mathématiques,Mathématiques,,,L2,Responsable d'année / Directeur des études,Enseignant,Emmanuel,SCHENCK,M,EC,,schenck@math.univ-paris13.fr,,,,Responsable de mention
+903,Licence,Mathématiques,Mathématiques,,Mathématiques appliquées à l'économie et à la finance,L3,Responsable d'année / Directeur des études,Enseignant,Isabelle,TROUVE,F,EC,,gaudron@math.univ-paris13.fr,,,,Responsable de mention
+903,Licence,Mathématiques,Mathématiques,,Mathématiques et applications,L3,Responsable d'année / Directeur des études,Enseignant,Anne,QUEGUINER MATHIEU,F,EC,,queguin@math.univ-paris13.fr,,,,Responsable de mention
+903,Licence,Mathématiques,Mathématiques,,Mathématiques pour l'enseignement,L3,Responsable d'année / Directeur des études,Enseignant,Frédéric,CLERC,M,ESAS,,clerc@math.univ-paris13.fr,,,,Responsable de mention
+903,Licence,Mathématiques,Mathématiques,,Assistant d'éducation,L3,Responsable d'année / Directeur des études,Enseignant,Sylviane,SCHWER,F,EC,,schwer@math.univ-paris13.fr,,,,Responsable de mention
+903,Licence,Mathématiques,Mathématiques,,Parcours aménagé,L1,Secrétaire pédagogique,Administratif,Noémia,DULPHY,F,BIATSS,,,licence1.amg.galilee@univ-paris13.fr,H014,,Responsable adjoint du service pédagogique
+903,Licence,Mathématiques,Mathématiques,,,L1,Secrétaire pédagogique,Administratif,Sarah,ITOUCHENE,F,BIATSS,,,licence1.galilee@univ-paris13.fr,H014,,Responsable adjoint du service pédagogique
+903,Licence,Mathématiques,Mathématiques,,,L2,Secrétaire pédagogique,Administratif,Greta,MEUNIER,F,BIATSS,,,licence2.maths.galilee@univ-paris13.fr,H012,,Responsable adjoint du service pédagogique
+903,Licence,Mathématiques,Mathématiques,,,L3,Secrétaire pédagogique,Administratif,Aline,DACHEUX,F,BIATSS,,,licence3.maths.galilee@univ-paris13.fr,H011,,Responsable adjoint du service pédagogique
+903,Licence,,Informatique-Mathématiques,,Double licence,L,Responsable de mention,Enseignant,Pierre,ROUSSELIN,M,ESAS,,rousselin@math.univ-paris13.fr,,,,Directeur adjoint chargé du cycle Licence
+903,Licence,,Informatique-Mathématiques,,Double licence,L1,Responsable d'année / Directeur des études,Enseignant,Pierre,ROUSSELIN,M,ESAS,,rousselin@math.univ-paris13.fr,,,,Responsable de mention
+903,Licence,,Informatique-Mathématiques,,Double licence,L2,Responsable d'année / Directeur des études,Enseignant,Maher,ZERZERI,M,EC,,zerzeri@math.univ-paris13.fr,,,,Responsable de mention
+903,Licence,,Informatique-Mathématiques,,Double licence,L3,Responsable d'année / Directeur des études,Enseignant,Charles,DE CLERCQ,M,EC,,declercq@math.univ-paris13.fr,,,,Responsable de mention
+903,Licence,,Informatique-Mathématiques,,Double licence,L1,Secrétaire pédagogique,Administratif,Sarah,ITOUCHENE,F,BIATSS,,,licence1.galilee@univ-paris13.fr,H014,,Responsable adjoint du service pédagogique
+903,Licence,,Informatique-Mathématiques,,Double licence,L2,Secrétaire pédagogique,Administratif,Greta,MEUNIER,F,BIATSS,,,licence2.info.galilee@univ-paris13.fr,H012,,Responsable adjoint du service pédagogique
+903,Licence,,Informatique-Mathématiques,,Double licence,L3,Secrétaire pédagogique,Administratif,Aline,DACHEUX,F,BIATSS,,,licence3.info.galilee@univ-paris13.fr,H011,,Responsable adjoint du service pédagogique
+903,Licence,,Physique-Chimie,,,L,Responsable de mention,Enseignant,Paolo,PEDRI,M,EC,paolo.pedri@univ-paris13.fr,,,,,Directeur adjoint chargé du cycle Licence
+903,Licence,,Physique-Chimie,,Parcours aménagé,L1,Responsable d'année / Directeur des études,Enseignant,Benoit,RITTAUD,M,EC,,rittaud@math.univ-paris13.fr,,,,Responsable de mention
+903,Licence,,Physique-Chimie,,Accès santé,L1,Responsable d'année / Directeur des études,Enseignant,Alex,LEMARCHAND,M,EC,alex.lemarchand@univ-paris13.fr,,,,,Responsable de mention
+903,Licence,,Physique-Chimie,,"Physique, chimie",L1,Responsable d'année / Directeur des études,Enseignant,Alex,LEMARCHAND,M,EC,alex.lemarchand@univ-paris13.fr,,,,,Responsable de mention
+903,Licence,,Physique-Chimie,,Technologique,L2,Responsable d'année / Directeur des études,Enseignant,Francisco,PERALES,M,EC,francisco.perales@univ-paris13.fr,,,,,Responsable de mention
+903,Licence,,Physique-Chimie,,"Physique, chimie",L2,Responsable d'année / Directeur des études,Enseignant,Francisco,PERALES,M,EC,francisco.perales@univ-paris13.fr,,,,,Responsable de mention
+903,Licence,,Physique-Chimie,,"Physique, chimie",L3,Responsable d'année / Directeur des études,Enseignant,Virginie,GUEGUEN,F,EC,virginie.gueguen@univ-paris13.fr,,,,,Responsable de mention
+903,Licence,,Physique-Chimie,,Parcours aménagé,L1,Secrétaire pédagogique,Administratif,Noémia,DULPHY,F,BIATSS,,,licence1.amg.galilee@univ-paris13.fr,H014,,Responsable adjoint du service pédagogique
+903,Licence,,Physique-Chimie,,,L1,Secrétaire pédagogique,Administratif,Sarah,ITOUCHENE,F,BIATSS,,,licence1.galilee@univ-paris13.fr,H014,,Responsable adjoint du service pédagogique
+903,Licence,,Physique-Chimie,,,L2,Secrétaire pédagogique,Administratif,Yamina,BELKEBIR,F,BIATSS,,,pc.licence.galilee@univ-paris13.fr,H013,,Responsable adjoint du service pédagogique
+903,Licence,,Physique-Chimie,,,L3,Secrétaire pédagogique,Administratif,Yamina,BELKEBIR,F,BIATSS,,,pc.licence.galilee@univ-paris13.fr,H013,,Responsable adjoint du service pédagogique
+903,Licence,Physique,Sciences pour l'ingénieur,,,L,Responsable de mention,Enseignant,Mohamed,BELMEGUENAI,M,EC,belmeguenai.mohamed@univ-paris13.fr,,,,,Directeur adjoint chargé du cycle Licence
+903,Licence,Physique,Sciences pour l'ingénieur,,Parcours aménagé,L1,Responsable d'année / Directeur des études,Enseignant,Benoit,RITTAUD,M,EC,,rittaud@math.univ-paris13.fr,,,,Responsable de mention
+903,Licence,Physique,Sciences pour l'ingénieur,,,L1,Responsable d'année / Directeur des études,Enseignant,Alex,LEMARCHAND,M,EC,alex.lemarchand@univ-paris13.fr,,,,,Responsable de mention
+903,Licence,Physique,Sciences pour l'ingénieur,,Sciences pour l'Ingénieur,L2,Responsable d'année / Directeur des études,Enseignant,Eloi,HALTZ,M,EC,eloi.haltz@univ-paris13.fr,,,,,Responsable de mention
+903,Licence,Physique,Sciences pour l'ingénieur,,Technologique,L2,Responsable d'année / Directeur des études,Enseignant,Eloi,HALTZ,M,EC,eloi.haltz@univ-paris13.fr,,,,,Responsable de mention
+903,Licence,Physique,Sciences pour l'ingénieur,,"Electronique, Signal, Réseaux",L3,Responsable d'année / Directeur des études,Enseignant,Mohamed,BELMEGUENAI,M,EC,belmeguenai.mohamed@univ-paris13.fr,,,,,Responsable de mention
+903,Licence,Physique,Sciences pour l'ingénieur,,Parcours aménagé,L1,Secrétaire pédagogique,Administratif,Noémia,DULPHY,F,BIATSS,,,licence1.amg.galilee@univ-paris13.fr,H014,,Responsable adjoint du service pédagogique
+903,Licence,Physique,Sciences pour l'ingénieur,,,L1,Secrétaire pédagogique,Administratif,Sarah,ITOUCHENE,F,BIATSS,,,licence1.galilee@univ-paris13.fr,H014,,Responsable adjoint du service pédagogique
+903,Licence,Physique,Sciences pour l'ingénieur,,,L2,Secrétaire pédagogique,Administratif,Yamina,BELKEBIR,F,BIATSS,,,pc.licence.galilee@univ-paris13.fr,H013,,Responsable adjoint du service pédagogique
+903,Licence,Physique,Sciences pour l'ingénieur,,,L3,Secrétaire pédagogique,Administratif,Yamina,BELKEBIR,F,BIATSS,,,pc.licence.galilee@univ-paris13.fr,H013,,Responsable adjoint du service pédagogique
+903,Licence,,Cumulatifs toutes mentions,,,L,Directeur des études,Enseignant,Elodie,DAVID,F,ESAS,elodie.david@univ-paris13.fr,,,,,Directeur adjoint chargé du cycle Licence
+903,Licence,,Cumulatifs toutes mentions,,,L,Secrétaire pédagogique,Administratif,Greta,MEUNIER,F,BIATSS,,,cumulatif.galilee@univ-paris13.fr,H012,,Responsable adjoint du service pédagogique
+903,Master,,,,,M,Directeur adjoint chargé du cycle Master,Enseignant,François,BEGUIN,M,EC,,,,,,Directeur de composante
+903,Master,,,,,M,Responsable du service pédagogique,Administratif,Florence,BAUDIN,F,BIATSS,,,licence-master.ig@univ-paris13.fr,H016,01 49 40 36 54,Directeur administratif
+903,Master,,,,,M,Responsable adjoint du service pédagogique,Administratif,Angélique,LEITE,F,BIATSS,,,master.galilee@univ-paris13.fr,H201,01 49 40 35 55,Responsable du service pédagogique
+903,Master,Chimie et Génie des Procédés,Génie des procédés et des bio-procédés,,,M,Responsable de mention,Enseignant,Jean-Philippe,PASSARELLO,M,EC,,jean-philippe.passarello@lspm.cnrs.fr,,,,Directeur adjoint chargé du cycle Master
+903,Master,Chimie et Génie des Procédés,Génie des procédés et des bio-procédés,,,M1,Responsable d'année,Enseignant,Michael,REDOLFI,M,EC,,michael.redolfi@lspm.cnrs.fr,,,,Responsable de mention
+903,Master,Chimie et Génie des Procédés,Génie des procédés et des bio-procédés,,Procédés pour la Qualité de l'Environnement (PQE),M2,Responsable d'année,Enseignant,Thierry,AVRAMOGLOU,M,EC,avramoglou@univ-paris13.fr,,,,,Responsable de mention
+903,Master,Chimie et Génie des Procédés,Génie des procédés et des bio-procédés,,Génie des Procédés Innovants et Développement Durable (GPI2D),M2,Responsable d'année,Enseignant,Mamadou,TRAORE,M,EC,,mamadou.traore@lspm.cnrs.fr,,,,Responsable de mention
+903,Master,Chimie et Génie des Procédés,Génie des procédés et des bio-procédés,,,M,Secrétaire pédagogique,Administratif,Leila,GHERBI,F,BIATSS,,,gp.master.galilee@univ-paris13.fr,H203,01 49 40 39 25,Responsable adjoint du service pédagogique
+903,Master,Informatique,Informatique,,,M,Responsable de mention,Enseignant,Younes,BENNANI,M,EC,,younes.bennani@lipn.univ-paris13.fr,,,,Directeur adjoint chargé du cycle Master
+903,Master,Informatique,Informatique,,,M1,Responsable d'année,Enseignant,Louenas,BOUNIA,M,EC,louenas.bounia@univ-paris13.fr,,,,,Responsable de mention
+903,Master,Informatique,Informatique,G5EI2D,Exploration Informatique des Données et Décisionnel (EI2D),M2,Responsable d'année,Enseignant,Younes,BENNANI,M,EC,,younes.bennani@lipn.univ-paris13.fr,,,,Responsable de mention
+903,Master,Informatique,Informatique,G5P2S,Programmation Sûreté et Sécurité (P2S),M2,Responsable d'année,Enseignant,Carlos,OLARTE,M,EC,,olarte@lipn.univ-paris13.fr,,,,Responsable de mention
+903,Master,Informatique,Informatique,,,M,Secrétaire pédagogique,Administratif,Djamila,TISGOUINE,F,BIATSS,,,info.master.galilee@univ-paris13.fr,H202,01 49 40 44 58,Responsable adjoint du service pédagogique
+903,Master,Physique,Ingénierie et Innovation en Images et Réseaux,,,M,Responsable de mention,Enseignant,Thi Mai Trang,NGUYEN,M,EC,thimaitrang.nguyen@univ-paris13.fr,,,,,Directeur adjoint chargé du cycle Master
+903,Master,Physique,Ingénierie et Innovation en Images et Réseaux,,,M1,Responsable d'année,Enseignant,Mohand Yazid,SAIDI,M,EC,saidi@univ-paris13.fr,,,,,Responsable de mention
+903,Master,Physique,Ingénierie et Innovation en Images et Réseaux,,Réseaux,M2,Responsable d'année,Enseignant,Thi Mai Trang,NGUYEN,M,EC,thimaitrang.nguyen@univ-paris13.fr,,,,,Responsable de mention
+903,Master,Physique,Ingénierie et Innovation en Images et Réseaux,,Systèmes intelligents et Vision par ordinateur (SIVO),M2,Responsable d'année,Enseignant,Aladine ,CHETOUANI ,M,EC,aladine.chetouani@univ-paris13.fr,,,,,Responsable de mention
+903,Master,Physique,Ingénierie et Innovation en Images et Réseaux,,,M,Secrétaire pédagogique,Administratif,Samira,BENSEDDIK,F,BIATSS,,,m3ir.master.galilee@univ-paris13.fr,H204,01 49 40 28 10,Responsable adjoint du service pédagogique
+903,Master,Mathématiques,Mathématiques,,,M,Responsable de mention,Enseignant,Pascal,BOYER,M,EC,,boyer@math.univ-paris13.fr,,,,Directeur adjoint chargé du cycle Master
+903,Master,Mathématiques,Mathématiques,,,M1,Responsable d'année,Enseignant,Pascal,BOYER,M,EC,,boyer@math.univ-paris13.fr,,,,Responsable de mention
+903,Master,Mathématiques,Mathématiques,,Mathématiques Fondamentales,M2,Responsable d'année,Enseignant,Maher,ZERZERI,M,EC,,zerzeri@math.univ-paris13.fr,,,,Responsable de mention
+903,Master,Mathématiques,Mathématiques,,Mathématiques des Données,M2,Responsable d'année,Enseignant,Thanh Mai,PHAM NGOC,F,EC,,phamngoc@math.univ-paris13.fr,,,,Responsable de mention
+903,Master,Mathématiques,Mathématiques,,,M,Secrétaire pédagogique,Administratif,Djamila,TISGOUINE,F,BIATSS,,,math.master.galilee@univ-paris13.fr,H202,01 49 40 44 58,Responsable adjoint du service pédagogique
+903,Master,Mathématiques,MEEF,,Mathématiques,M,Responsable de mention,Enseignant,Frédéric ,CLERC,M,ESAS,frédéric.clerc@univ-paris13.fr,,,,,Directeur adjoint chargé du cycle Master
+903,Master,Mathématiques,MEEF,,Mathématiques,M1,Responsable d'année,Enseignant,Frédéric ,CLERC,M,ESAS,frédéric.clerc@univ-paris13.fr,,,,,Responsable de mention
+903,Master,Mathématiques,MEEF,,Mathématiques,M2,Responsable d'année,Enseignant,Laurent ,RIGAL,M,EC,,rigal@math.univ-paris13.fr,,,,Responsable de mention
+903,Master,Mathématiques,MEEF,,,M,Secrétaire pédagogique,Administratif,Samira,BENSEDDIK,F,BIATSS,,,meef.master.galilee@univ-paris13.fr,H204,01 49 40 28 10,Responsable adjoint du service pédagogique
+903,Master,Physique,Physique Fondamentale et Applications,,,M,Responsable de mention,Enseignant,Laurent,VERNAC,M,EC,laurent.vernac@univ-paris13.fr,,,,,Directeur adjoint chargé du cycle Master
+903,Master,Physique,Physique Fondamentale et Applications,,Technologies Quantiques,M1,Responsable d'année,Enseignant,Laurent,VERNAC,M,EC,laurent.vernac@univ-paris13.fr,,,,,Responsable de mention
+903,Master,Physique,Physique Fondamentale et Applications,,,M,Secrétaire pédagogique,Administratif,Chloé,LEARD,F,BIATSS,,,tq.master.galilee@univ-paris13.fr,H204,01 49 40 35 57,Responsable adjoint du service pédagogique
+903,Master,Chimie et Génie des Procédés,Sciences et Génie des Matériaux,,,M,Responsable de mention,Enseignant,Fatih,ZIGHEM,M,EC,,fatih.zighem@lspm.cnrs.fr,,,,Directeur adjoint chargé du cycle Master
+903,Master,Chimie et Génie des Procédés,Sciences et Génie des Matériaux,,Physique et mécanique des Matériaux (P2M),M1,Responsable d'année,Enseignant,Fabien,CAZES,M,EC,fabien.cazes@univ-paris13.fr,,,,,Responsable de mention
+903,Master,Chimie et Génie des Procédés,Sciences et Génie des Matériaux,,"Ingénierie Biomédicale, Biomatériaux, Biomolécules  (I3B)",M1,Responsable d'année,Enseignant,Julia,DESCHAMP,F,EC,julia.deschamp@univ-paris13.fr,,,,,Responsable de mention
+903,Master,Chimie et Génie des Procédés,Sciences et Génie des Matériaux,,Modélisation et Simulation en Mécanique (MSM),M2,Responsable d'année,Enseignant,Fabien,CAZES,M,EC,fabien.cazes@univ-paris13.fr,,,,,Responsable de mention
+903,Master,Chimie et Génie des Procédés,Sciences et Génie des Matériaux,,Physique et Ingénierie des Matériaux (PIM),M2,Responsable d'année,Enseignant,Mohamed,BELMEGUENAI,M,EC,belmeguenai.mohamed@univ-paris13.fr,,,,,Responsable de mention
+903,Master,Chimie et Génie des Procédés,Sciences et Génie des Matériaux,,"Ingénierie Biomédicale, Biomatériaux, Biomolécules  (I3B) - FI",M2,Responsable d'année,Enseignant,Céline,FALENTIN,F,EC,falentin-daudre@univ-paris13.fr,,,,,Responsable de mention
+903,Master,Chimie et Génie des Procédés,Sciences et Génie des Matériaux,,"Ingénierie Biomédicale, Biomatériaux, Biomolécules  (I3B) - FA",M2,Responsable d'année,Enseignant,Géraldine,ROHMAN,F,EC,geraldine.rohman@univ-paris13.fr,,,,,Responsable de mention
+903,Master,Chimie et Génie des Procédés,Sciences et Génie des Matériaux,,,M,Secrétaire pédagogique,Administratif,Chloé,LEARD,F,BIATSS,,,sgm.master.galilee@univ-paris13.fr,H204,01 49 40 35 57,Responsable adjoint du service pédagogique
+903,Ingénieur,,,,,ING,Directeur adjoint chargé de l'école d'ingénieur,Enseignant,Lucas,LETOCART,M,EC,,lucas.letocart@lipn.univ-paris13.fr,direction.sup.galilee@univ-paris13.fr,,,Directeur de composante
+903,Ingénieur,,,,,ING,Responsable du service pédagogique,Administratif,Elisabeth,CHRISTINY,F,BIATSS,,,administration.sup.galilee@univ-paris13.fr,H104,01 49 40 35 49,Responsable du service pédagogique
+903,Ingénieur,,,,,ING,Responsable adjoint du service pédagogique,Administratif,Marie,RAINGEVAL,F,BIATSS,,,,H100,01 49 40 21 29,Responsable du service pédagogique
+903,Ingénieur,,Transverse,,,ING,Responsable Qualité,Enseignant,Sylvie,BORNE,F,EC,,sylvie.borne@lipn.univ-paris13.fr,resp.qualite.sup.galilee@univ-paris13.fr,,,Directeur adjoint chargé de l'école d'ingénieur
+903,Ingénieur,,Transverse,,,ING,Responsable International,Enseignant,Thierry,HAMON,M,EC,thierry.hamon@univ-paris13.fr,,,,,Directeur adjoint chargé de l'école d'ingénieur
+903,Ingénieur,,Transverse,,,ING,Référent Communication,Enseignant,Sébastien,GUERIF,M,EC,,sebastien.guerif@lipn.univ-paris13.fr,communication.sup.galilee@univ-paris13.fr,,,Directeur adjoint chargé de l'école d'ingénieur
+903,Ingénieur,,Transverse,,,ING,Référent e-learning,Enseignant,Sylvie,BORNE,F,EC,,sylvie.borne@lipn.univ-paris13.fr,resp.qualite.sup.galilee@univ-paris13.fr,,,Directeur adjoint chargé de l'école d'ingénieur
+903,Ingénieur,,Transverse,,,ING,Référent Ecri+,Enseignant,Sylvie,BORNE,F,EC,,sylvie.borne@lipn.univ-paris13.fr,resp.qualite.sup.galilee@univ-paris13.fr,,,Directeur adjoint chargé de l'école d'ingénieur
+903,Ingénieur,,Cursus Préparatoire Ingénieur Intégré,,,CP2I,Directeur,Enseignant,Sébastien,GUERIF,M,EC,,sebastien.guerif@lipn.univ-paris13.fr,direction.cycleprepa.sup.galilee@univ-paris13.fr,,,Directeur adjoint chargé de l'école d'ingénieur
+903,Ingénieur,,Cursus Préparatoire Ingénieur Intégré,,,CP2I,Directeur adjoint,Enseignant,Julien,DUCOULOMBIER,M,ESAS,,ducoulom@math.univ-paris13.fr,,,,Directeur du cursus préparatoire
+903,Ingénieur,,Cursus Préparatoire Ingénieur Intégré,,,CP2I1,Responsable d'année,Enseignant,Sylvain,QUEYREAU,M,EC,,sylvain.queyreau@lspm.cnrs.fr,,,,Directeur adjoint du cursus préparatoire
+903,Ingénieur,,Cursus Préparatoire Ingénieur Intégré,,,CP2I2,Responsable d'année,Enseignant,Julien,DUCOULOMBIER,M,ESAS,,ducoulom@math.univ-paris13.fr,,,,Directeur adjoint du cursus préparatoire
+903,Ingénieur,,Cursus Préparatoire Ingénieur Intégré,,,CP2I,Secrétaire pédagogique,Administratif,Samira,BELKACEM,F,BIATSS,,,cycle-prepa.sup.galilee@univ-paris13.fr,H103,01 49 40 33 75,Responsable adjoint du service pédagogique
+903,Ingénieur,,Transverse,,,ING1,Responsable des cours communs scientifiques,Enseignant,Linda,EL ALAOUI,F,EC,,elalaoui@math.univ-paris13.fr,,,,Directeur adjoint chargé de l'école d'ingénieur
+903,Ingénieur,,Transverse,,,ING,Responsable des cours communs de culture ingénieur,Enseignant,Christel,BARBAUD,F,EC,barbaud@univ-paris13.fr,,,,,Directeur adjoint chargé de l'école d'ingénieur
+903,Ingénieur,,Transverse,,,ING1,Responsable d'année,Enseignant,Stéphane,VENTO,M,EC,,vento@math.univ-paris13.fr,,,,Responsable des cours communs de culture ingénieur
+903,Ingénieur,,Transverse,,,ING2,Responsable d'année,Enseignant,Laure,HUNSINGER,F,ESAS,laure.hunsinger@univ-paris13.fr,,,,,Responsable des cours communs de culture ingénieur
+903,Ingénieur,,Transverse,,,ING3,Responsable d'année,Enseignant,Christel,BARBAUD,F,EC,barbaud@univ-paris13.fr,,,,,Responsable des cours communs de culture ingénieur
+903,Ingénieur,,Transverse,,,ING,Secrétaire pédagogique des cours communs,Administratif,Marie,RAINGEVAL,F,BIATSS,,,courscommuns.sup.galilee@univ-paris13.fr,H100,01 49 40 21 29,Responsable adjoint du service pédagogique
+903,Ingénieur,Chimie et Génie des Procédés,Energétique,,,ING,Directeur de spécialité,Enseignant,Claudia,LAZZARONI,F,EC,,Claudia.LAZZARONI@lspm.cnrs.fr,,,,Directeur adjoint chargé de l'école d'ingénieur
+903,Ingénieur,Chimie et Génie des Procédés,Energétique,,FISE,ING,Directeur adjoint de spécialité,Enseignant,Corinne,DULUARD-CURLEY,F,EC,,corinne.duluard@lspm.cnrs.fr,,,,Directeur de spécialité
+903,Ingénieur,Chimie et Génie des Procédés,Energétique,G3SE,FISE,ING1,Responsable d'année,Enseignant,Danièle,CHAUBET,F,EC,daniele.chaubet@univ-paris13.fr,,,,,Directeur adjoint de spécialité
+903,Ingénieur,Chimie et Génie des Procédés,Energétique,G4SE,FISE,ING2,Responsable d'année,Enseignant,Viet-Dung,N'GUYEN,M,EC,,viet-dung.nguyen@lspm.cnrs.fr,,,,Directeur adjoint de spécialité
+903,Ingénieur,Chimie et Génie des Procédés,Energétique,G5SE,FISE,ING3,Responsable d'année,Enseignant,Khaled,HASSOUNI,M,EC,,hassouni@lspm.cnrs.fr,,,,Directeur adjoint de spécialité
+903,Ingénieur,Chimie et Génie des Procédés,Energétique,,FISA,ING,Directeur adjoint de spécialité,Enseignant,Gabriel,DUTIER,M,EC,gabriel.dutier@univ-paris13.fr,,,,,Directeur de spécialité
+903,Ingénieur,Chimie et Génie des Procédés,Energétique,G3SE2,FISA,ING1,Responsable d'année,Enseignant,Lamia,ZNAIDI,F,EC,,znaidi@lspm.cnrs.fr,,,,Directeur adjoint de spécialité
+903,Ingénieur,Chimie et Génie des Procédés,Energétique,G4SE2,FISA,ING2,Responsable d'année,Enseignant,Frédéric,CHAUBET,M,EC,frederic.chaubet@univ-paris13.fr,,,,,Directeur adjoint de spécialité
+903,Ingénieur,Chimie et Génie des Procédés,Energétique,G5SE2,FISA,ING3,Responsable d'année,Enseignant,Corinne,DULUARD-CURLEY,F,EC,,corinne.duluard@lspm.cnrs.fr,,,,Directeur adjoint de spécialité
+903,Ingénieur,Chimie et Génie des Procédés,Energétique,,,ING,Secrétaire pédagogique,Administratif,Sabrina,AMIR,F,BIATSS,,,energetique.sup.galilee@univ-paris13.fr,H102,01 49 40 35 52,Responsable adjoint du service pédagogique
+903,Ingénieur,Informatique,Informatique,,,ING,Directeur de spécialité,Enseignant,John,CHAUSSARD,M,EC,,chaussard@math.univ-paris13.fr,,,,Directeur adjoint chargé de l'école d'ingénieur
+903,Ingénieur,Informatique,Informatique,,FISE,ING,Directeur adjoint de spécialité,Enseignant,Joseph,LE ROUX,M,EC,,joseph.leroux@lipn.univ-paris13.fr,,,,Directeur de spécialité
+903,Ingénieur,Informatique,Informatique,G3SI,FISE,ING1,Responsable d'année,Enseignant,Ali,AKHAVI,M,EC,,ali.akhavi@lipn.univ-paris13.fr,,,,Directeur adjoint de spécialité
+903,Ingénieur,Informatique,Informatique,G4SI,FISE,ING2,Responsable d'année,Enseignant,Manel,ZARROUK,F,EC,,zarrouk@lipn.univ-paris13.fr,,,,Directeur adjoint de spécialité
+903,Ingénieur,Informatique,Informatique,G5SI,FISE,ING3,Responsable d'année,Enseignant,Joseph,LE ROUX,M,EC,,joseph.leroux@lipn.univ-paris13.fr,,,,Directeur adjoint de spécialité
+903,Ingénieur,Informatique,Informatique,,FISA,ING,Directeur adjoint de spécialité,Enseignant,Samir,YOUCEF,M,EC,,youcef@lipn.univ-paris13.fr,,,,Directeur de spécialité
+903,Ingénieur,Informatique,Informatique,G3SI2,FISA,ING1,Responsable d'année,Enseignant,Gladys,DIAZ,F,EC,gladys.diaz@univ-paris13.fr,,,,,Directeur adjoint de spécialité
+903,Ingénieur,Informatique,Informatique,G4SI2,FISA,ING2,Responsable d'année,Enseignant,Thomas,PAPASTERGIOU,M,EC,,papastergiou@lipn.univ-paris13.fr,,,,Directeur adjoint de spécialité
+903,Ingénieur,Informatique,Informatique,G5SI2,FISA,ING3,Responsable d'année,Enseignant,Samir,YOUCEF,M,EC,,youcef@lipn.univ-paris13.fr,,,,Directeur adjoint de spécialité
+903,Ingénieur,Informatique,Informatique,,,ING,Secrétaire pédagogique,Administratif,Reyhan,VYNISALE,F,BIATSS,,,informatique.sup.galilee@univ-paris13.fr,H101,01 49 40 40 91,Responsable adjoint du service pédagogique
+903,Ingénieur,Physique,Instrumentation,,,ING,Directeur de spécialité,Enseignant,Frédéric,LECOMTE,M,EC,frederic.lecomte@univ-paris13.fr,,,,,Directeur adjoint chargé de l'école d'ingénieur
+903,Ingénieur,Physique,Instrumentation,,FISE,ING,Directeur adjoint de spécialité,Enseignant,Jean-Marie,FEYBESSE,M,ESAS,jean-marie.feybesse@univ-paris13.fr,,,,,Directeur de spécialité
+903,Ingénieur,Physique,Instrumentation,G3SIN,FISE,ING1,Responsable d'année,Enseignant,Mathieu,MANCEAU,M,EC,mathieu.manceau@univ-paris13.fr,,,,,Directeur adjoint de spécialité
+903,Ingénieur,Physique,Instrumentation,G4SIN,FISE,ING2,Responsable d'année,Enseignant,Athanasios,LALIOTIS,M,EC,athanasios.laliotis@univ-paris13.fr,,,,,Directeur adjoint de spécialité
+903,Ingénieur,Physique,Instrumentation,G5SIN,FISE,ING3,Responsable d'année,Enseignant,Henri-François,RAYNAUD,M,EC,raynaud@univ-paris13.fr,,,,,Directeur adjoint de spécialité
+903,Ingénieur,Physique,Instrumentation,,,ING,Secrétaire pédagogique,Administratif,Noira,LUKOWSKI,F,BIATSS,,,instrumentation.sup.galilee@univ-paris13.fr,H102,01 49 40 36 45,Responsable adjoint du service pédagogique
+903,Ingénieur,Mathématiques,Mathématiques Appliquées,,,ING,Directeur de spécialité,Enseignant,Nicolas,VAUCHELET,M,EC,,vauchelet@math.univ-paris13.fr,,,,Directeur adjoint chargé de l'école d'ingénieur
+903,Ingénieur,Mathématiques,Mathématiques Appliquées,,FISE,ING,Directeur adjoint de spécialité,Enseignant,Caroline,JAPHET,F,EC,,japhet@math.univ-paris13.fr,,,,Directeur de spécialité
+903,Ingénieur,Mathématiques,Mathématiques Appliquées,G3SC,FISE,ING1,Responsable d'année,Enseignant,Bérangère,DELOURME,F,EC,,delourme@math.univ-paris13.fr,,,,Directeur adjoint de spécialité
+903,Ingénieur,Mathématiques,Mathématiques Appliquées,G4SC,FISE,ING2,Responsable d'année,Enseignant,Clément,FOUCART,M,EC,,foucart@math.univ-paris13.fr,,,,Directeur adjoint de spécialité
+903,Ingénieur,Mathématiques,Mathématiques Appliquées,G5SC,FISE,ING3,Responsable d'année,Enseignant,Emmanuel,AUDUSSE,M,EC,,audusse@math.univ-paris13.fr,,,,Directeur adjoint de spécialité
+903,Ingénieur,Mathématiques,Mathématiques Appliquées,,,ING,Secrétaire pédagogique,Administratif,Samira,BELKACEM,F,BIATSS,,,macs.sup.galilee@univ-paris13.fr,H103,01 49 40 33 75,Responsable adjoint du service pédagogique
+903,Ingénieur,Physique,Télécommunications et réseaux,,,ING,Directeur de spécialité,Enseignant,Khaled,BOUSSETTA,M,EC,khaled.boussetta@univ-paris13.fr,,,,,Directeur adjoint chargé de l'école d'ingénieur
+903,Ingénieur,Physique,Télécommunications et réseaux,,FISE,ING,Directeur adjoint de spécialité,Enseignant,Laurent,LONGCHAMBON,M,EC,laurent.longchambon@univ-paris13.fr,,,,,Directeur de spécialité
+903,Ingénieur,Physique,Télécommunications et réseaux,G3ST,FISE,ING1,Responsable d'année,Enseignant,Zuheng,MING,M,EC,zuheng.ming@univ-paris13.fr,,,,,Directeur adjoint de spécialité
+903,Ingénieur,Physique,Télécommunications et réseaux,G4ST,FISE,ING2,Responsable d'année,Enseignant,Fangchen,FENG,M,EC,fangchen.feng@univ-paris13.fr,,,,,Directeur adjoint de spécialité
+903,Ingénieur,Physique,Télécommunications et réseaux,G5ST,FISE,ING3,Responsable d'année,Enseignant,Marwen,ABDENNEBI,M,EC,marwen.abdennebi@univ-paris13.fr,,,,,Directeur adjoint de spécialité
+903,Ingénieur,Physique,Télécommunications et réseaux,,,ING,Secrétaire pédagogique,Administratif,Noira,LUKOWSKI,F,BIATSS,,,telecom.sup.galilee@univ-paris13.fr,H102,01 49 40 36 45,Responsable adjoint du service pédagogique
